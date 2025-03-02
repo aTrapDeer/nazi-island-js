@@ -16,6 +16,7 @@ Nazi Island is a browser-based 3D shooter where players must survive increasingl
 
 ## How to Play
 
+### npx http-server . -o
 1. Simply open the `index.html` file in a web browser to start the game.
 2. Move around the island using WASD or arrow keys.
 3. Aim with your mouse cursor.
