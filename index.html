@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nazi Island - FPS Game</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+    #loading-screen {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 1000;
+    }
+
+    .loader {
+      border: 5px solid #333;
+      border-top: 5px solid #f3f3f3;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    #error-message {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: red;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      max-width: 80%;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loader"></div>
+    <h2>Loading Nazi Island...</h2>
+    <p>Prepare to fight waves of enemies!</p>
+    <div id="loading-status">Initializing...</div>
+  </div>
+  
+  <div id="error-message"></div>
+
+  <!-- Three.js library is now imported directly in the modules -->
+  
+  <!-- Audio system script -->
+  <script src="audioSystem.js"></script>
+  
+  <!-- Game audio bridge -->
+  <script src="game-audio.js"></script>
+  
+  <!-- Game script with type="module" to enable ES6 imports -->
+  <script type="module">
+    // Debug loading status
+    const loadingStatus = document.getElementById('loading-status');
+    const errorMessage = document.getElementById('error-message');
+    
+    // Function to update loading status
+    function updateStatus(message) {
+      console.log("Loading status:", message);
+      loadingStatus.textContent = message;
+    }
+    
+    // Function to show error
+    function showError(message) {
+      console.error("Error:", message);
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+    }
+    
+    // Wait for resources to load
+    window.addEventListener('load', function() {
+      updateStatus("Resources loaded, starting game...");
+      
+      // Try to import the game with error handling
+      try {
+        updateStatus("Importing game module...");
+        
+        // Import and start the main game
+        import('./game.js')
+          .then(() => {
+            updateStatus("Game module loaded successfully!");
+            // Hide loading screen after a short delay
+            setTimeout(() => {
+              document.getElementById('loading-screen').style.display = 'none';
+            }, 1500);
+          })
+          .catch(error => {
+            updateStatus("Failed to load game module!");
+            showError("Error loading game: " + error.message);
+            console.error(error);
+          });
+      } catch (error) {
+        updateStatus("Exception during import!");
+        showError("Error starting game: " + error.message);
+        console.error(error);
+      }
+    });
+  </script>
+</body>
+</html> 
