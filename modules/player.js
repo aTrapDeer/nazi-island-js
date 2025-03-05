@@ -11,7 +11,7 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/thr
 export function createPlayer(scene) {
   // Player container
   const player = new THREE.Group();
-  player.position.set(0, 0, 0);
+  player.position.set(0, 0, -5); // Moved 5 units along Z axis to a clear area
   scene.add(player);
   
   // Create a direction marker for debugging
@@ -338,8 +338,17 @@ export function updatePlayerPosition(player, camera, deltaTime) {
       moveVector.addScaledVector(playerDirection, -movementDirection.z);
     }
     
+    // Store original position for collision detection
+    const originalPosition = player.position.clone();
+    
     // Move player
     player.position.add(moveVector);
+    
+    // Check for collisions with objects in the scene
+    if (checkCollisions(player, originalPosition)) {
+      // If collision occurred, revert to original position
+      player.position.copy(originalPosition);
+    }
     
     // Keep player within island radius (50 units)
     const distanceFromCenter = Math.sqrt(
@@ -387,6 +396,57 @@ export function updatePlayerPosition(player, camera, deltaTime) {
   // Get global gameState from window if available
   const gameState = window.gameState || { mousePosition: new THREE.Vector2() };
   updateWeaponAiming(player, camera, gameState.mousePosition);
+}
+
+/**
+ * Checks if the player is colliding with any collidable objects in the scene
+ * @param {THREE.Object3D} player - The player object
+ * @param {THREE.Vector3} originalPosition - Original position before movement
+ * @returns {boolean} - Whether a collision occurred
+ */
+function checkCollisions(player, originalPosition) {
+  // Get all objects in the scene
+  const scene = player.parent;
+  if (!scene) return false;
+  
+  // Player collision parameters
+  const playerRadius = 0.5; // Collision radius for player
+  
+  // Check collision with each object in the scene
+  let collision = false;
+  
+  scene.traverse((object) => {
+    // Skip if not collidable, or if it's the player itself
+    if (!object.userData.collidable || object === player) return;
+    
+    // Calculate distance between player and object center (X-Z plane only)
+    const dx = player.position.x - object.position.x;
+    const dz = player.position.z - object.position.z;
+    const distance = Math.sqrt(dx * dx + dz * dz);
+    
+    // Get object's collision radius (default to 1 if not specified)
+    const objectRadius = object.userData.collisionRadius || 1.0;
+    
+    // Check if collision occurred
+    if (distance < (playerRadius + objectRadius)) {
+      // Apply different logic based on object type
+      if (object.userData.isBunker) {
+        // For bunker, use a larger fixed radius
+        const bunkerDx = player.position.x - 15; // Bunker is at x=15
+        const bunkerDz = player.position.z - 10; // Bunker is at z=10
+        const distanceToBunker = Math.sqrt(bunkerDx * bunkerDx + bunkerDz * bunkerDz);
+        
+        if (distanceToBunker < 5.0) { // Bunker has radius of about 5 units
+          collision = true;
+        }
+      } else {
+        // Standard collision for trees, bushes, rocks, etc.
+        collision = true;
+      }
+    }
+  });
+  
+  return collision;
 }
 
 /**

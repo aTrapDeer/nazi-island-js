@@ -4,7 +4,7 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/thr
 // Import our modules
 import { createIsland } from './modules/island.js';
 import { createPlayer, updatePlayerPosition, triggerShootAnimation } from './modules/player.js';
-import { createEnemy, spawnWave, updateEnemies, triggerEnemyHitAnimation, dismemberEnemyPart, triggerEnemyDeathAnimation } from './modules/enemies.js';
+import { createEnemy, spawnWave, updateEnemies, triggerEnemyHitAnimation, dismemberEnemyPart, triggerEnemyDeathAnimation, updateBoats } from './modules/enemies.js';
 import { createProjectile, createAmmoPickup, updateProjectiles, updateAmmoPickups, createMuzzleFlash, createEnemyProjectile } from './modules/projectiles.js';
 import { GameState } from './modules/gameState.js';
 
@@ -603,66 +603,79 @@ function spawnNewWave() {
 }
 
 /**
- * Shows an animated wave announcement
- * @param {number} waveNumber - The wave number to display
+ * Shows a wave announcement
+ * @param {number} waveNumber - The wave number
  * @param {Function} callback - Function to call when animation completes
  */
 function showWaveAnnouncement(waveNumber, callback) {
-  // Create or get wave announcement container
-  let waveAnnouncement = document.getElementById('waveAnnouncement');
-  if (!waveAnnouncement) {
-    waveAnnouncement = document.createElement('div');
-    waveAnnouncement.id = 'waveAnnouncement';
-    waveAnnouncement.style.position = 'absolute';
-    waveAnnouncement.style.top = '40%';
-    waveAnnouncement.style.left = '50%';
-    waveAnnouncement.style.transform = 'translate(-50%, -50%)';
-    waveAnnouncement.style.color = '#ff0000';
-    waveAnnouncement.style.fontFamily = '"Impact", sans-serif';
-    waveAnnouncement.style.fontSize = '80px';
-    waveAnnouncement.style.textShadow = '0 0 10px #000';
-    waveAnnouncement.style.opacity = '0';
-    waveAnnouncement.style.transition = 'all 0.5s ease-in-out';
-    waveAnnouncement.style.zIndex = '100';
-    waveAnnouncement.style.textAlign = 'center';
-    waveAnnouncement.style.pointerEvents = 'none';
-    document.body.appendChild(waveAnnouncement);
+  console.log(`Showing wave ${waveNumber} announcement`);
+  
+  // Create announcement container
+  const container = document.createElement('div');
+  container.id = 'waveAnnouncement';
+  container.style.position = 'absolute';
+  container.style.top = '50%';
+  container.style.left = '50%';
+  container.style.transform = 'translate(-50%, -50%)';
+  container.style.color = 'white';
+  container.style.fontFamily = 'Arial, sans-serif';
+  container.style.fontSize = '48px';
+  container.style.fontWeight = 'bold';
+  container.style.textAlign = 'center';
+  container.style.textShadow = '0 0 10px rgba(255, 0, 0, 0.8)';
+  container.style.opacity = '0';
+  container.style.transition = 'opacity 0.5s ease-in-out';
+  container.style.zIndex = '1000';
+  container.style.pointerEvents = 'none';
+  
+  // Create wave text
+  const waveText = document.createElement('div');
+  waveText.textContent = `WAVE ${waveNumber}`;
+  waveText.style.marginBottom = '10px';
+  container.appendChild(waveText);
+  
+  // Create subtitle text
+  const subtitleText = document.createElement('div');
+  subtitleText.style.fontSize = '24px';
+  subtitleText.style.fontWeight = 'normal';
+  subtitleText.style.opacity = '0.9';
+  
+  // Customize subtitle based on wave number
+  if (waveNumber === 1) {
+    subtitleText.textContent = 'ENEMY BOATS APPROACHING THE ISLAND';
+  } else if (waveNumber < 5) {
+    subtitleText.textContent = `${waveNumber} NAZI BOATS SPOTTED ON THE HORIZON`;
+  } else if (waveNumber < 10) {
+    subtitleText.textContent = 'HEAVY REINFORCEMENTS ARRIVING BY SEA';
+  } else {
+    subtitleText.textContent = 'MASSIVE NAVAL INVASION FORCE INCOMING';
   }
   
-  // Set wave text with dramatic styling
-  waveAnnouncement.innerHTML = `
-    <div>WAVE ${waveNumber}</div>
-    <div style="font-size: 40px; color: #ff6600;">PREPARE FOR BATTLE!</div>
-  `;
+  container.appendChild(subtitleText);
   
-  // Animation sequence
+  // Add to DOM
+  document.body.appendChild(container);
+  
+  // Animate in
   setTimeout(() => {
-    // Fade in
-    waveAnnouncement.style.opacity = '1';
-    waveAnnouncement.style.transform = 'translate(-50%, -50%) scale(1.2)';
+    container.style.opacity = '1';
     
-    // Play sound effect if available
-    if (window.playSound) {
-      window.playSound('waveStart');
-    }
-    
+    // Animate out after delay
     setTimeout(() => {
-      // Pulse effect
-      waveAnnouncement.style.transform = 'translate(-50%, -50%) scale(1.0)';
+      container.style.opacity = '0';
       
+      // Remove from DOM after animation
       setTimeout(() => {
-        // Hold for a moment
-        setTimeout(() => {
-          // Fade out
-          waveAnnouncement.style.opacity = '0';
-          
-          // Call callback after animation completes
-          setTimeout(() => {
-            if (callback) callback();
-          }, 500);
-        }, 1000);
-      }, 200);
-    }, 200);
+        if (container.parentNode) {
+          container.parentNode.removeChild(container);
+        }
+        
+        // Call callback
+        if (typeof callback === 'function') {
+          callback();
+        }
+      }, 500);
+    }, 2000);
   }, 100);
 }
 
@@ -683,6 +696,27 @@ function handleEnemyHit(enemy, hitPoint, hitDirection, bodyPart) {
       isHeadshot = true;
       showHitMarker(true); // Show red hit marker for headshot
       showHeadshotMessage(); // Show headshot message
+      
+      // Add 40% chance for head detachment on headshot
+      if (Math.random() < 0.4) {
+        console.log("Head detachment triggered by headshot!");
+        // Explicitly dismember head with blood pool
+        try {
+          const success = dismemberEnemyPart(enemy, scene, 'head', hitPoint, direction);
+          
+          if (success) {
+            // Get world position of the enemy for blood pool
+            const worldPos = new THREE.Vector3();
+            enemy.object.getWorldPosition(worldPos);
+            worldPos.y = 0.02; // Place slightly above ground
+            
+            // Create blood pool under detached head
+            window.createSmallBloodPool(scene, worldPos, 'head');
+          }
+        } catch (error) {
+          console.error("Error during head detachment:", error);
+        }
+      }
       break;
     case 'body':
       damage = PLAYER_DAMAGE * 50; // High damage for body shot
@@ -743,13 +777,15 @@ function handleEnemyHit(enemy, hitPoint, hitDirection, bodyPart) {
     }
   }
   
-  // Apply dismemberment with random chance
-  if (Math.random() < DISMEMBERMENT_CHANCE) {
-    try {
-      const success = dismemberEnemyPart(enemy, scene, bodyPart, hitPoint, direction);
-      console.log(`Dismemberment attempt for ${bodyPart}: ${success ? 'successful' : 'failed'}`);
-    } catch (error) {
-      console.error("Error during dismemberment:", error);
+  // Apply dismemberment with random chance (but only if not already done for head)
+  if (!isHeadshot || bodyPart !== 'head') {
+    if (Math.random() < DISMEMBERMENT_CHANCE) {
+      try {
+        const success = dismemberEnemyPart(enemy, scene, bodyPart, hitPoint, direction);
+        console.log(`Dismemberment attempt for ${bodyPart}: ${success ? 'successful' : 'failed'}`);
+      } catch (error) {
+        console.error("Error during dismemberment:", error);
+      }
     }
   }
   
@@ -1231,6 +1267,9 @@ function animate() {
     // Get player position for enemy updates
     const playerPosition = camera.position.clone();
     
+    // Update boats
+    updateBoats(scene, deltaTime);
+    
     // Update enemy positions with shooting behavior
     updateEnemies(enemies, playerPosition, deltaTime, scene, enemyProjectiles);
     
@@ -1273,11 +1312,6 @@ function animate() {
   // Update particles with reduced processing for better performance
   if (!gameState.reducedEffects || frameCount % 2 === 0) {
     updateParticles(particles, deltaTime);
-  }
-  
-  // Update debug overlay if enabled
-  if (gameState.showDebugInfo) {
-    updateDebugOverlay();
   }
   
   // Render the scene

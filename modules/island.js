@@ -90,6 +90,11 @@ function addRocks(scene) {
     
     rock.castShadow = true;
     rock.receiveShadow = true;
+    
+    // Add collision data
+    rock.userData.collidable = true;
+    rock.userData.collisionRadius = 1 + Math.random() * 0.5; // Based on geometry size
+    
     scene.add(rock);
   }
 }
@@ -106,6 +111,16 @@ function addVegetation(scene) {
     const x = Math.cos(angle) * distance;
     const z = Math.sin(angle) * distance;
     
+    // Create a group for the tree (trunk + foliage)
+    const treeGroup = new THREE.Group();
+    treeGroup.position.set(x, 0, z);
+    scene.add(treeGroup);
+    
+    // Add collision data to the tree group
+    treeGroup.userData.collidable = true;
+    treeGroup.userData.collisionRadius = 1.0; // Trunk radius
+    treeGroup.userData.isTree = true;
+    
     // Tree trunk
     const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 2 + Math.random() * 2, 8);
     const trunkMaterial = new THREE.MeshStandardMaterial({
@@ -113,10 +128,10 @@ function addVegetation(scene) {
       roughness: 0.9
     });
     const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.position.set(x, 1, z);
+    trunk.position.y = 1;
     trunk.castShadow = true;
     trunk.receiveShadow = true;
-    scene.add(trunk);
+    treeGroup.add(trunk);
     
     // Tree foliage
     const foliageGeometry = new THREE.ConeGeometry(1.5, 3, 8);
@@ -125,9 +140,9 @@ function addVegetation(scene) {
       roughness: 1.0
     });
     const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-    foliage.position.set(x, 3.5, z);
+    foliage.position.y = 3.5;
     foliage.castShadow = true;
-    scene.add(foliage);
+    treeGroup.add(foliage);
   }
   
   // Add some bushes
@@ -137,7 +152,8 @@ function addVegetation(scene) {
     const x = Math.cos(angle) * distance;
     const z = Math.sin(angle) * distance;
     
-    const bushGeometry = new THREE.SphereGeometry(0.5 + Math.random() * 0.5, 8, 8);
+    const bushSize = 0.5 + Math.random() * 0.5;
+    const bushGeometry = new THREE.SphereGeometry(bushSize, 8, 8);
     const bushMaterial = new THREE.MeshStandardMaterial({
       color: 0x567d46, // Green
       roughness: 1.0
@@ -146,6 +162,12 @@ function addVegetation(scene) {
     bush.position.set(x, 0.5, z);
     bush.castShadow = true;
     bush.receiveShadow = true;
+    
+    // Add collision data
+    bush.userData.collidable = true;
+    bush.userData.collisionRadius = bushSize;
+    bush.userData.isBush = true;
+    
     scene.add(bush);
   }
 }
@@ -186,6 +208,12 @@ function addBunker(scene) {
   // Bunker group
   const bunkerGroup = new THREE.Group();
   bunkerGroup.position.set(15, 0, 10);
+  
+  // Add collision data to the entire bunker
+  bunkerGroup.userData.collidable = true;
+  bunkerGroup.userData.collisionRadius = 6.0; // Approximate radius of the bunker
+  bunkerGroup.userData.isBunker = true;
+  
   scene.add(bunkerGroup);
   
   // Main bunker structure
