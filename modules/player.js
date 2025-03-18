@@ -248,8 +248,15 @@ export function createPlayer(scene) {
     // Animation properties
     animationTime: 0,
     isWalking: false,
+    isSprinting: false,
     isShooting: false,
     shootingTime: 0,
+    
+    // Jump properties
+    isJumping: false,
+    jumpVelocity: 0,
+    gravity: 0.015,
+    jumpHeight: 0.35,
     
     // References to animated parts
     leftLeg: leftLeg,
@@ -286,6 +293,10 @@ export function updatePlayerPosition(player, camera, deltaTime) {
   // Get global keyState from window if available
   const keyState = window.keyState || {};
   
+  // Check if sprint key (Shift) is pressed
+  const isSprinting = keyState['ShiftLeft'] || keyState['ShiftRight'];
+  player.userData.isSprinting = isSprinting && !player.userData.isJumping;
+  
   // Handle WASD and arrow keys
   // This ensures movement is relative to the camera view
   if (keyState['KeyW'] || keyState['ArrowUp']) {
@@ -303,6 +314,17 @@ export function updatePlayerPosition(player, camera, deltaTime) {
     rotateRight = true;
   }
   
+  // Handle jumping with space bar
+  if (keyState['Space'] && !player.userData.isJumping) {
+    player.userData.isJumping = true;
+    player.userData.jumpVelocity = player.userData.jumpHeight;
+    
+    // Add a small sound effect for jumping if available
+    if (typeof window.playSound === 'function') {
+      window.playSound('jump', 0.5);
+    }
+  }
+  
   // Check if player is walking
   const isWalking = movementDirection.length() > 0;
   player.userData.isWalking = isWalking;
@@ -316,12 +338,36 @@ export function updatePlayerPosition(player, camera, deltaTime) {
     player.rotation.y -= rotationSpeed;
   }
   
+  // Process jumping physics
+  if (player.userData.isJumping) {
+    // Apply jump velocity
+    player.position.y += player.userData.jumpVelocity;
+    
+    // Apply gravity
+    player.userData.jumpVelocity -= player.userData.gravity;
+    
+    // Check if landing
+    if (player.position.y <= 0) {
+      player.position.y = 0;
+      player.userData.isJumping = false;
+      player.userData.jumpVelocity = 0;
+      
+      // Add a landing sound effect if available
+      if (typeof window.playSound === 'function') {
+        window.playSound('land', 0.3);
+      }
+    }
+  }
+  
   // Normalize to get a consistent speed in all directions
   if (isWalking) {
     movementDirection.normalize();
     
-    // Apply movement speed (hardcoded for now)
-    const movementSpeed = 0.15;
+    // Apply movement speed with sprint modifier if shift is pressed
+    const baseMovementSpeed = 0.15;
+    const sprintMultiplier = player.userData.isSprinting ? 1.8 : 1.0;
+    const movementSpeed = baseMovementSpeed * sprintMultiplier;
+    
     movementDirection.multiplyScalar(movementSpeed);
     
     // Get player's forward direction (based on its rotation)
@@ -341,13 +387,16 @@ export function updatePlayerPosition(player, camera, deltaTime) {
     // Store original position for collision detection
     const originalPosition = player.position.clone();
     
-    // Move player
+    // Move player horizontally only (keep vertical position from jump)
+    const oldY = player.position.y;
     player.position.add(moveVector);
+    player.position.y = oldY; // Preserve jumping height
     
     // Check for collisions with objects in the scene
     if (checkCollisions(player, originalPosition)) {
-      // If collision occurred, revert to original position
-      player.position.copy(originalPosition);
+      // If collision occurred, revert to original position (except for Y)
+      player.position.x = originalPosition.x;
+      player.position.z = originalPosition.z;
     }
     
     // Keep player within island radius (50 units)
@@ -377,7 +426,7 @@ export function updatePlayerPosition(player, camera, deltaTime) {
     -playerForward.z * cameraDistance
   );
   
-  // Position camera relative to player
+  // Position camera relative to player, including player's jump height
   camera.position.set(
     player.position.x + cameraOffset.x,
     player.position.y + cameraOffset.y,
@@ -460,40 +509,80 @@ function checkCollisions(player, originalPosition) {
 function updatePlayerAnimations(player, deltaTime) {
   const userData = player.userData;
   
-  // Update animation time
-  userData.animationTime += deltaTime * 5; // Animation speed multiplier
+  // Update animation time with faster animation when sprinting
+  const animationSpeedMultiplier = userData.isSprinting ? 8 : 5;
+  userData.animationTime += deltaTime * animationSpeedMultiplier;
   
-  // Walking animation
-  if (userData.isWalking) {
-    // Leg animation - walking cycle with increased amplitude
-    const legAngle = Math.sin(userData.animationTime) * 0.5; // Increased from 0.3 to 0.5
+  // Walking or sprinting animation
+  if (userData.isWalking && !userData.isJumping) {
+    // Leg animation - walking/sprinting cycle with increased amplitude when sprinting
+    const legAmplitude = userData.isSprinting ? 0.7 : 0.5;
+    const legAngle = Math.sin(userData.animationTime) * legAmplitude;
     
     // Left leg swings opposite to right leg
     userData.leftLeg.rotation.x = legAngle;
     userData.rightLeg.rotation.x = -legAngle;
     
-    // Arm animation - walking cycle (opposite to legs) with increased amplitude
-    const armAngle = Math.sin(userData.animationTime) * 0.4; // Increased from 0.2 to 0.4
+    // Arm animation - walking/sprinting cycle (opposite to legs) with increased amplitude
+    const armAmplitude = userData.isSprinting ? 0.8 : 0.4;
+    const armAngle = Math.sin(userData.animationTime) * armAmplitude;
     
     // Arms swing opposite to legs
     userData.leftArm.rotation.x = -armAngle;
     userData.rightArm.rotation.x = armAngle;
     
-    // Slight body bounce with increased amplitude
-    const bounceHeight = Math.abs(Math.sin(userData.animationTime * 2)) * 0.1; // Increased from 0.05 to 0.1
-    player.position.y = bounceHeight;
+    // Add weapon movement for sprinting - weapon moves more with the right arm
+    if (userData.isSprinting) {
+      // Make weapon move with right arm during sprint
+      const weaponBobAmount = Math.sin(userData.animationTime) * 0.15;
+      userData.weaponGroup.position.y = userData.weaponGroupPos.y + weaponBobAmount;
+      
+      // Add slight weapon rotation during sprint for more dynamic movement
+      const weaponTiltAmount = Math.sin(userData.animationTime) * 0.1;
+      userData.weaponGroup.rotation.z = weaponTiltAmount;
+    } else {
+      // Reset weapon position when not sprinting
+      userData.weaponGroup.position.y = userData.weaponGroupPos.y;
+      userData.weaponGroup.rotation.z = 0;
+    }
+    
+    // Slight body bounce with increased amplitude for sprinting
+    const bounceAmplitude = userData.isSprinting ? 0.15 : 0.1;
+    const bounceHeight = Math.abs(Math.sin(userData.animationTime * 2)) * bounceAmplitude;
+    
+    // Only apply bounce if not jumping
+    if (!userData.isJumping) {
+      player.position.y = bounceHeight;
+    }
     
     // Debug log to confirm animation is running
     if (Math.random() < 0.001) { // Occasional log to avoid flooding console
-      console.log("Player walking animation active", legAngle);
+      console.log("Player animation active", userData.isSprinting ? "sprinting" : "walking", legAngle);
     }
+  } else if (userData.isJumping) {
+    // Jumping animation - tuck legs and extend arms
+    userData.leftLeg.rotation.x = 0.5; // Bend knees
+    userData.rightLeg.rotation.x = 0.5;
+    userData.leftArm.rotation.x = -0.3; // Arms slightly out
+    userData.rightArm.rotation.x = -0.3;
+    
+    // Reset weapon rotation when jumping
+    userData.weaponGroup.rotation.z = 0;
   } else {
     // Reset to idle pose
     userData.leftLeg.rotation.x = 0;
     userData.rightLeg.rotation.x = 0;
     userData.leftArm.rotation.x = 0;
     userData.rightArm.rotation.x = 0;
-    player.position.y = 0;
+    
+    // Reset weapon position and rotation
+    userData.weaponGroup.position.y = userData.weaponGroupPos.y;
+    userData.weaponGroup.rotation.z = 0;
+    
+    // Only reset Y position if not jumping
+    if (!userData.isJumping) {
+      player.position.y = 0;
+    }
   }
   
   // Shooting animation

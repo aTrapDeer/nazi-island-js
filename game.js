@@ -118,6 +118,7 @@ function init() {
   window.updateHealthDisplay = updateHealthDisplay;
   window.createEnemyProjectile = createEnemyProjectile; // Make enemy projectile creation available globally
   window.createMuzzleFlash = createMuzzleFlash; // Make muzzle flash available globally
+  window.playSound = playSound; // Make sound function available for jumping
   
   // Create lighting
   setupLighting();
@@ -244,27 +245,10 @@ function setupInputListeners() {
     
     keyState[event.code] = true;
     
-    // Shoot on space bar
-    if (event.code === 'Space' && !gameState.isGameOver) {
-      shoot();
-    }
-    
-    // Toggle tracer display with 'T' key
-    if (event.code === 'KeyT') {
-      gameState.showBulletTracers = !gameState.showBulletTracers;
-      console.log(`Bullet tracers ${gameState.showBulletTracers ? 'enabled' : 'disabled'}`);
-      
-      // Show a notification to the player
-      showNotification(`Bullet tracers: ${gameState.showBulletTracers ? 'ON' : 'OFF'}`);
-    }
-    
-    // Toggle debug info with F1 key
-    if (event.code === 'F1') {
-      gameState.showDebugInfo = !gameState.showDebugInfo;
-      toggleDebugOverlay(gameState.showDebugInfo);
-      
-      // Show a notification to the player
-      showNotification(`Debug info: ${gameState.showDebugInfo ? 'ON' : 'OFF'}`);
+    // Handle debug toggle
+    if (event.code === 'Backquote') {
+      showDebugInfo = !showDebugInfo;
+      toggleDebugOverlay(showDebugInfo);
     }
   });
   
@@ -272,95 +256,38 @@ function setupInputListeners() {
     keyState[event.code] = false;
   });
   
-  // Mouse click for shooting
+  // Mouse down for shooting
   document.addEventListener('mousedown', (event) => {
-    if (event.button === 0 && !gameState.isGameOver) { // Left click
-      gameState.mouseDown = true;
+    // Don't process clicks if game is over
+    if (gameState.isGameOver) return;
+    
+    if (event.button === 0) { // Left mouse button
+      isMouseDown = true;
       shoot();
-      
-      // Animate reticle for shooting
-      const reticle = document.getElementById('aiming-reticle');
-      if (reticle) {
-        // Add shooting animation class
-        reticle.classList.add('shooting');
-        
-        // Remove class after animation completes
-        setTimeout(() => {
-          reticle.classList.remove('shooting');
-        }, 150);
-      }
     }
   });
   
+  // Mouse up to stop shooting
   document.addEventListener('mouseup', (event) => {
-    if (event.button === 0) { // Left click release
-      gameState.mouseDown = false;
+    if (event.button === 0) { // Left mouse button
+      isMouseDown = false;
     }
   });
-  
-  // Create aiming reticle that follows the mouse
-  const reticle = document.createElement('div');
-  reticle.id = 'aiming-reticle';
-  reticle.style.position = 'absolute';
-  reticle.style.width = '12px';
-  reticle.style.height = '12px';
-  reticle.style.borderRadius = '50%';
-  reticle.style.border = '1.5px solid rgba(255, 255, 255, 0.8)';
-  reticle.style.backgroundColor = 'transparent';
-  reticle.style.pointerEvents = 'none';
-  reticle.style.zIndex = '99';
-  reticle.style.transform = 'translate(-50%, -50%)';
-  reticle.style.boxShadow = '0 0 4px rgba(0, 0, 0, 0.5)';
-  reticle.style.transition = 'width 0.15s, height 0.15s, background-color 0.15s';
-  
-  // Add crosshair lines
-  const horizontalLine = document.createElement('div');
-  horizontalLine.style.position = 'absolute';
-  horizontalLine.style.width = '14px';
-  horizontalLine.style.height = '1.5px';
-  horizontalLine.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-  horizontalLine.style.left = '50%';
-  horizontalLine.style.top = '50%';
-  horizontalLine.style.transform = 'translate(-50%, -50%)';
-  reticle.appendChild(horizontalLine);
-  
-  const verticalLine = document.createElement('div');
-  verticalLine.style.position = 'absolute';
-  verticalLine.style.width = '1.5px';
-  verticalLine.style.height = '14px';
-  verticalLine.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-  verticalLine.style.left = '50%';
-  verticalLine.style.top = '50%';
-  verticalLine.style.transform = 'translate(-50%, -50%)';
-  reticle.appendChild(verticalLine);
-  
-  document.body.appendChild(reticle);
-  
-  // Add CSS for shooting animation
-  const style = document.createElement('style');
-  style.textContent = `
-    #aiming-reticle.shooting {
-      width: 18px !important;
-      height: 18px !important;
-      background-color: rgba(255, 0, 0, 0.3) !important;
-      border-color: rgba(255, 255, 255, 1) !important;
-    }
-  `;
-  document.head.appendChild(style);
   
   // Track mouse position for aiming
   document.addEventListener('mousemove', (event) => {
-    // Calculate normalized device coordinates
-    gameState.mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
-    gameState.mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    // Calculate normalized device coordinates (-1 to +1)
+    const x = (event.clientX / window.innerWidth) * 2 - 1;
+    const y = -(event.clientY / window.innerHeight) * 2 + 1;
     
-    // Update reticle position
-    reticle.style.left = event.clientX + 'px';
-    reticle.style.top = event.clientY + 'px';
+    // Store in game state
+    gameState.mousePosition = new THREE.Vector2(x, y);
   });
   
-  // Hide default cursor
-  document.body.style.cursor = 'none';
+  // Prevent context menu on right-click
+  document.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+  });
 }
 
 function shoot() {
@@ -2372,4 +2299,39 @@ function createBloodSplatter(scene, position) {
       }
     }, 3000 + Math.random() * 7000); // 3-10 seconds
   }
-} 
+}
+
+/**
+ * Plays a sound effect with the specified volume
+ * @param {string} soundType - Type of sound to play
+ * @param {number} volume - Volume to play the sound at (0-1)
+ */
+function playSound(soundType, volume = 1.0) {
+  // Create audio element
+  const audio = new Audio();
+  
+  // Set source based on sound type
+  switch (soundType) {
+    case 'jump':
+      // Use a placeholder jump sound URL or data
+      audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...'; // Base64 encoded minimal sound
+      break;
+    case 'land':
+      // Use a placeholder landing sound URL or data  
+      audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...'; // Base64 encoded minimal sound
+      break;
+    default:
+      console.warn(`Unknown sound type: ${soundType}`);
+      return;
+  }
+  
+  // Set volume
+  audio.volume = Math.min(1.0, Math.max(0, volume));
+  
+  // Play the sound
+  audio.play().catch(error => {
+    // Handle autoplay restrictions quietly
+    console.log(`Sound playback failed: ${error.message}`);
+  });
+}
+  
