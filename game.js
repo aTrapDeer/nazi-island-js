@@ -22,6 +22,11 @@ const AUTO_FIRE_RATE = 200; // Time between shots in milliseconds
 const HEADSHOT_SCORE_BONUS = 50; // Bonus score for headshots
 const DISMEMBERMENT_CHANCE = 0.7; // Chance of dismemberment on hit (70%)
 
+// FPS capping constants
+const TARGET_FPS = 60;
+const FRAME_INTERVAL = 1000 / TARGET_FPS;
+let lastFrameTime = 0;
+
 // Main game setup
 let scene, camera, renderer, controls;
 let gameState;
@@ -1187,135 +1192,146 @@ function restartGame() {
 
 // Animation loop
 function animate() {
+  // Request next frame immediately, but we'll only update/render if enough time has passed
   requestAnimationFrame(animate);
   
-  // Calculate delta time
-  const currentTime = performance.now() / 1000; // Convert to seconds
-  const deltaTime = Math.min(0.1, currentTime - lastTime); // Cap at 0.1 to prevent large jumps
-  lastTime = currentTime;
+  // Check if we should skip this frame (FPS cap)
+  const now = performance.now();
+  const elapsed = now - lastFrameTime;
   
-  // Check if player died this frame
-  if (gameState.health <= 0 && !gameState.isGameOver) {
-    // Player just died - trigger game over
-    showGameOver();
-    gameState.isGameOver = true; // Set immediately to prevent movement
-    return; // Skip the rest of the update
-  }
-  
-  // Update player position only if not game over
-  if (!gameState.isGameOver) {
-    // Update player position based on keyboard input
-    updatePlayerPosition(player, camera, deltaTime);
-  }
-  
-  // Performance optimization: Track FPS more accurately
-  frameCount++;
-  const elapsedTime = currentTime - lastFpsUpdate;
-  
-  if (elapsedTime >= 1.0) { // Update FPS counter every second
-    const fps = Math.round(frameCount / elapsedTime);
-    frameCount = 0;
-    lastFpsUpdate = currentTime;
+  // Only update and render if enough time has passed (enforce 60 FPS cap)
+  if (elapsed >= FRAME_INTERVAL) {
+    // Adjust lastFrameTime to account for any potential drift
+    lastFrameTime = now - (elapsed % FRAME_INTERVAL);
     
-    // Add to FPS history
-    fpsHistory.push(fps);
-    if (fpsHistory.length > fpsHistoryMaxLength) {
-      fpsHistory.shift(); // Remove oldest entry
+    // Calculate delta time
+    const currentTime = now / 1000; // Convert to seconds
+    const deltaTime = Math.min(0.1, currentTime - lastTime); // Cap at 0.1 to prevent large jumps
+    lastTime = currentTime;
+    
+    // Check if player died this frame
+    if (gameState.health <= 0 && !gameState.isGameOver) {
+      // Player just died - trigger game over
+      showGameOver();
+      gameState.isGameOver = true; // Set immediately to prevent movement
+      return; // Skip the rest of the update
     }
     
-    // Calculate average FPS from history
-    const avgFps = fpsHistory.reduce((sum, value) => sum + value, 0) / fpsHistory.length;
-    
-    // Log FPS every 5 seconds for debugging
-    if (Math.floor(currentTime) % 5 === 0 && !fpsLogged) {
-      console.log(`Current FPS: ${fps}, Average FPS: ${avgFps.toFixed(1)}`);
-      fpsLogged = true;
-    } else if (Math.floor(currentTime) % 5 !== 0) {
-      fpsLogged = false;
+    // Update player position only if not game over
+    if (!gameState.isGameOver) {
+      // Update player position based on keyboard input
+      updatePlayerPosition(player, camera, deltaTime);
     }
     
-    // If average FPS is critically low, reduce visual effects
-    if (avgFps < 25) {
-      if (!gameState.reducedEffects) {
-        console.log("Performance mode activated: Reducing visual effects");
-        gameState.reducedEffects = true;
+    // Performance optimization: Track FPS more accurately
+    frameCount++;
+    const elapsedTime = currentTime - lastFpsUpdate;
+    
+    if (elapsedTime >= 1.0) { // Update FPS counter every second
+      const fps = Math.round(frameCount / elapsedTime);
+      frameCount = 0;
+      lastFpsUpdate = currentTime;
+      
+      // Add to FPS history
+      fpsHistory.push(fps);
+      if (fpsHistory.length > fpsHistoryMaxLength) {
+        fpsHistory.shift(); // Remove oldest entry
       }
-    } else if (avgFps > 40 && gameState.reducedEffects) {
-      console.log("Performance mode deactivated: Restoring visual effects");
-      gameState.reducedEffects = false;
-    }
-  }
-  
-  // Handle auto-firing
-  if (gameState.autoFire && gameState.mouseDown) {
-    const currentTime = performance.now();
-    if (currentTime - lastShotTime > shootingCooldown) {
-      shoot();
-      lastShotTime = currentTime;
-    }
-  }
-  
-  // Recover from recoil when not firing
-  if (performance.now() - lastShotTime > 200) {
-    if (currentRecoil > 0) {
-      currentRecoil = Math.max(0, currentRecoil - (deltaTime * 2)); // Recover faster
-    }
-  }
-  
-  // Update enemies
-  if (gameState.isPlaying && !gameState.isGameOver) {
-    // Get player position for enemy updates
-    const playerPosition = camera.position.clone();
-    
-    // Update boats
-    updateBoats(scene, deltaTime);
-    
-    // Update enemy positions with shooting behavior
-    updateEnemies(enemies, playerPosition, deltaTime, scene, enemyProjectiles);
-    
-    // Update enemy projectiles
-    enemyProjectiles = updateEnemyProjectiles(enemyProjectiles, camera.position, deltaTime, scene);
-    
-    // Check if wave is complete based on the enemy counter
-    if (gameState.isWaveActive && gameState.enemiesRemainingInWave === 0) {
-      console.log("Wave completed! All enemies defeated.");
-      gameState.isWaveActive = false;
       
-      // Show wave completed message
-      showWaveCompletedMessage(gameState.wave);
+      // Calculate average FPS from history
+      const avgFps = fpsHistory.reduce((sum, value) => sum + value, 0) / fpsHistory.length;
       
-      // Wait a moment before starting the next wave
-      setTimeout(() => {
-        spawnNewWave();
-      }, 3000);
+      // Log FPS every 5 seconds for debugging
+      if (Math.floor(currentTime) % 5 === 0 && !fpsLogged) {
+        console.log(`Current FPS: ${fps}, Average FPS: ${avgFps.toFixed(1)}`);
+        fpsLogged = true;
+      } else if (Math.floor(currentTime) % 5 !== 0) {
+        fpsLogged = false;
+      }
+      
+      // If average FPS is critically low, reduce visual effects
+      if (avgFps < 25) {
+        if (!gameState.reducedEffects) {
+          console.log("Performance mode activated: Reducing visual effects");
+          gameState.reducedEffects = true;
+        }
+      } else if (avgFps > 40 && gameState.reducedEffects) {
+        console.log("Performance mode deactivated: Restoring visual effects");
+        gameState.reducedEffects = false;
+      }
     }
+    
+    // Handle auto-firing
+    if (gameState.autoFire && gameState.mouseDown) {
+      const currentTime = performance.now();
+      if (currentTime - lastShotTime > shootingCooldown) {
+        shoot();
+        lastShotTime = currentTime;
+      }
+    }
+    
+    // Recover from recoil when not firing
+    if (performance.now() - lastShotTime > 200) {
+      if (currentRecoil > 0) {
+        currentRecoil = Math.max(0, currentRecoil - (deltaTime * 2)); // Recover faster
+      }
+    }
+    
+    // Update enemies
+    if (gameState.isPlaying && !gameState.isGameOver) {
+      // Get player position for enemy updates
+      const playerPosition = camera.position.clone();
+      
+      // Update boats
+      updateBoats(scene, deltaTime);
+      
+      // Update enemy positions with shooting behavior
+      updateEnemies(enemies, playerPosition, deltaTime, scene, enemyProjectiles);
+      
+      // Update enemy projectiles
+      enemyProjectiles = updateEnemyProjectiles(enemyProjectiles, camera.position, deltaTime, scene);
+      
+      // Check if wave is complete based on the enemy counter
+      if (gameState.isWaveActive && gameState.enemiesRemainingInWave === 0) {
+        console.log("Wave completed! All enemies defeated.");
+        gameState.isWaveActive = false;
+        
+        // Show wave completed message
+        showWaveCompletedMessage(gameState.wave);
+        
+        // Wait a moment before starting the next wave
+        setTimeout(() => {
+          spawnNewWave();
+        }, 3000);
+      }
+    }
+    
+    // Update projectiles with the new hit detection
+    projectiles = updateProjectiles(projectiles, enemies, scene, deltaTime);
+    
+    // Update ammo pickups
+    ammoPickups = updateAmmoPickups(ammoPickups, player, scene, (amount) => {
+      // Callback when ammo is collected
+      gameState.addAmmo(amount);
+      
+      // Play pickup sound (if available)
+      console.log(`Picked up ${amount} ammo!`);
+      
+      // Show ammo pickup message
+      showAmmoPickupMessage(amount);
+      
+      // Update UI
+      updateUI();
+    });
+    
+    // Update particles with reduced processing for better performance
+    if (!gameState.reducedEffects || frameCount % 2 === 0) {
+      updateParticles(particles, deltaTime);
+    }
+    
+    // Render the scene
+    renderer.render(scene, camera);
   }
-  
-  // Update projectiles with the new hit detection
-  projectiles = updateProjectiles(projectiles, enemies, scene, deltaTime);
-  
-  // Update ammo pickups
-  ammoPickups = updateAmmoPickups(ammoPickups, player, scene, (amount) => {
-    // Callback when ammo is collected
-    gameState.addAmmo(amount);
-    
-    // Play pickup sound (if available)
-    console.log(`Picked up ${amount} ammo!`);
-    
-    // Show ammo pickup message
-    showAmmoPickupMessage(amount);
-    
-    // Update UI
-    updateUI();
-  });
-  
-  // Update particles with reduced processing for better performance
-  if (!gameState.reducedEffects || frameCount % 2 === 0) {
-    updateParticles(particles, deltaTime);
-  }
-  
-  // Render the scene
-  renderer.render(scene, camera);
 }
 
 /**

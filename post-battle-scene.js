@@ -11,6 +11,11 @@ let scene, camera, renderer;
 let player, island;
 let enemies = [];
 
+// FPS capping variables
+let lastFrameTime = 0;
+const targetFPS = 60;
+const frameInterval = 1000 / targetFPS;
+
 // Initialize the scene
 init();
 animate();
@@ -542,11 +547,22 @@ function createScreenshotUI() {
 }
 
 function animate() {
+  // Calculate current time and elapsed time since last frame
+  const currentTime = performance.now();
+  const deltaTime = currentTime - lastFrameTime;
+  
+  // Only render if enough time has passed for next frame (60 FPS cap)
+  if (deltaTime >= frameInterval) {
+    // Record the time at which this frame was rendered
+    lastFrameTime = currentTime - (deltaTime % frameInterval); // Adjust for potential drift
+    
+    // Optional: Add some subtle camera movement for a more cinematic feel
+    camera.position.y = 5 + Math.sin(currentTime * 0.0005) * 0.1;
+    
+    // Render the scene
+    renderer.render(scene, camera);
+  }
+  
+  // Request next frame
   requestAnimationFrame(animate);
-  
-  // Optional: Add some subtle camera movement for a more cinematic feel
-  camera.position.y = 5 + Math.sin(performance.now() * 0.0005) * 0.1;
-  
-  // Render the scene
-  renderer.render(scene, camera);
 } 
