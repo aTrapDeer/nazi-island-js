@@ -1468,6 +1468,15 @@ function showAmmoPickupMessage(amount) {
  * @param {number} waveNumber - The completed wave number
  */
 function showWaveCompletedMessage(waveNumber) {
+  // Apply wave completion rewards
+  const rewards = gameState.restoreWaveCompletion();
+  
+  // Update UI after rewards
+  updateUI();
+  
+  // Show visual effects for the rewards
+  showWaveCompletionRewardEffects(rewards);
+  
   // Create or get wave completed container
   let waveCompletedMessage = document.getElementById('waveCompletedMessage');
   if (!waveCompletedMessage) {
@@ -1493,6 +1502,14 @@ function showWaveCompletedMessage(waveNumber) {
   waveCompletedMessage.innerHTML = `
     <div>WAVE ${waveNumber} COMPLETED!</div>
     <div style="font-size: 32px; margin-top: 20px;">All Nazis Eliminated</div>
+    <div style="font-size: 28px; margin-top: 30px; color: #87CEFA;">
+      <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px;">
+        <span style="color: #ff5555;">+${rewards.healthRestored} HEALTH</span>
+        ${rewards.healthRestored > 0 ? '<span style="margin: 0 10px;">|</span>' : ''}
+        <span style="color: #ffff55;">+${rewards.ammoRestored} AMMO</span>
+      </div>
+      <div style="font-size: 22px; margin-top: 5px; opacity: 0.8;">Wave Completion Bonus</div>
+    </div>
   `;
   
   // Animation sequence
@@ -1513,9 +1530,164 @@ function showWaveCompletedMessage(waveNumber) {
       // Fade out after a delay
       setTimeout(() => {
         waveCompletedMessage.style.opacity = '0';
-      }, 1500);
+      }, 2200); // Extended time to allow reading the rewards
     }, 300);
   }, 100);
+}
+
+/**
+ * Creates visual effects for wave completion rewards
+ * @param {Object} rewards - Object containing healthRestored and ammoRestored values
+ */
+function showWaveCompletionRewardEffects(rewards) {
+  // Effect for UI elements
+  const healthBar = document.getElementById('healthBar');
+  const ammoCounter = document.getElementById('ammoCount');
+  
+  // If elements exist, add a glow effect
+  if (healthBar && rewards.healthRestored > 0) {
+    // Add healing glow effect to health bar
+    healthBar.style.boxShadow = '0 0 15px #ff5555';
+    healthBar.style.transition = 'box-shadow 0.3s ease-in-out';
+    
+    // Remove the effect after a delay
+    setTimeout(() => {
+      healthBar.style.boxShadow = 'none';
+    }, 2000);
+  }
+  
+  if (ammoCounter) {
+    // Add golden glow effect to ammo counter
+    ammoCounter.style.textShadow = '0 0 10px #ffff55';
+    ammoCounter.style.color = '#ffffff';
+    ammoCounter.style.transition = 'all 0.3s ease-in-out';
+    
+    // Remove the effect after a delay
+    setTimeout(() => {
+      ammoCounter.style.textShadow = 'none';
+      ammoCounter.style.color = '';
+    }, 2000);
+  }
+  
+  // Create particle effects in the 3D scene
+  
+  // Health restoration particles (red)
+  if (rewards.healthRestored > 0) {
+    createHealingEffect(player.position);
+  }
+  
+  // Ammo restoration effect (yellow)
+  createAmmoRestorationEffect(player.position);
+  
+  // Play sound effect for restoration if available
+  if (typeof window.gameAudio !== 'undefined') {
+    if (window.gameAudio.playSound) {
+      if (rewards.healthRestored > 0) {
+        window.gameAudio.playSound('healing');
+      }
+      window.gameAudio.playSound('ammoPickup');
+    }
+  }
+}
+
+/**
+ * Creates a healing particle effect around the player
+ * @param {THREE.Vector3} position - Position to create the effect
+ */
+function createHealingEffect(position) {
+  const particleCount = 20;
+  
+  for (let i = 0; i < particleCount; i++) {
+    // Create a sprite for the particle
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        color: 0xff5555, // Red color for health
+        transparent: true,
+        opacity: 0.8
+      })
+    );
+    
+    // Random size
+    const size = 0.2 + Math.random() * 0.4;
+    sprite.scale.set(size, size, size);
+    
+    // Position around the player in a spiral
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 0.5 + Math.random() * 1.5;
+    const height = Math.random() * 2;
+    
+    sprite.position.set(
+      position.x + Math.cos(angle) * radius,
+      position.y + height,
+      position.z + Math.sin(angle) * radius
+    );
+    
+    // Add to scene
+    scene.add(sprite);
+    
+    // Add to particles array for tracking
+    particles.push({
+      object: sprite,
+      velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * 0.05,
+        0.05 + Math.random() * 0.1,
+        (Math.random() - 0.5) * 0.05
+      ),
+      opacity: 0.8,
+      life: 1.0,
+      decay: 0.01 + Math.random() * 0.02
+    });
+  }
+}
+
+/**
+ * Creates an ammo restoration effect around the player
+ * @param {THREE.Vector3} position - Position to create the effect
+ */
+function createAmmoRestorationEffect(position) {
+  const particleCount = 15;
+  
+  for (let i = 0; i < particleCount; i++) {
+    // Create a sprite for the particle
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        color: 0xffff55, // Yellow color for ammo
+        transparent: true,
+        opacity: 0.8
+      })
+    );
+    
+    // Random size
+    const size = 0.1 + Math.random() * 0.2;
+    sprite.scale.set(size, size, size);
+    
+    // Position in a circular pattern around player's gun
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 0.3 + Math.random() * 0.7;
+    
+    // Offset to position near player's gun
+    sprite.position.set(
+      position.x + Math.cos(angle) * radius + 0.5,
+      position.y + 1 + Math.random() * 0.5,
+      position.z + Math.sin(angle) * radius + 0.5
+    );
+    
+    // Add to scene
+    scene.add(sprite);
+    
+    // Add to particles array with upward spiral movement
+    particles.push({
+      object: sprite,
+      velocity: new THREE.Vector3(
+        Math.cos(angle) * 0.03,
+        0.05 + Math.random() * 0.1,
+        Math.sin(angle) * 0.03
+      ),
+      opacity: 0.8,
+      life: 1.0,
+      decay: 0.02 + Math.random() * 0.03
+    });
+  }
 }
 
 /**
@@ -1538,47 +1710,112 @@ function updateEnemyProjectiles(projectiles, playerPosition, deltaTime, scene) {
     const shouldKeep = projectile.update(deltaTime);
     
     if (shouldKeep) {
+      // First check if this projectile hits a tree
+      let treeHit = false;
+      
+      // Create a ray for tree hit detection
+      const ray = new THREE.Raycaster(
+        projectile.startPoint || projectile.position,
+        projectile.direction,
+        0,   // Near plane
+        100  // Far plane - long enough to reach across the map
+      );
+      
+      // Check tree collisions
+      scene.traverse((object) => {
+        if (!treeHit && object.userData && object.userData.isTreePart && object.isMesh) {
+          const intersects = ray.intersectObject(object, false);
+          if (intersects.length > 0) {
+            treeHit = true;
+            console.log("Enemy bullet hit tree part:", object.userData);
+            
+            // Remove the hit tree part
+            if (object.parent) {
+              object.parent.remove(object);
+            }
+            
+            // If this was the trunk, remove the whole tree
+            if (object.userData.isTrunk) {
+              console.log("Enemy bullet hit trunk - destroying whole tree");
+              // Find the tree group (parent) and remove it
+              let treeGroup = object.parent;
+              while (treeGroup && !treeGroup.userData.isTree) {
+                treeGroup = treeGroup.parent;
+              }
+              
+              if (treeGroup && treeGroup.parent) {
+                // Add falling effect and wood particles
+                if (typeof window.createWoodParticles === 'function') {
+                  window.createWoodParticles(scene, treeGroup.position.clone());
+                }
+                treeGroup.parent.remove(treeGroup);
+              }
+            } else if (object.userData.isFoliage) {
+              // Create leaf particles
+              if (typeof window.createLeafParticles === 'function') {
+                window.createLeafParticles(scene, intersects[0].point.clone());
+              }
+            }
+            
+            // Remove the projectile
+            projectile.remove(scene);
+            return;
+          }
+        }
+      });
+      
+      if (treeHit) {
+        // Skip player hit check if we hit a tree
+        continue;
+      }
+      
       // Check if this projectile hit the player using line segment
       let hitPlayer = false;
       
-      // Only do the hit test if we have the necessary data
-      if (projectile.startPoint && projectile.endPoint && projectile.direction) {
-        // Calculate closest point on the ray to the player
-        // This is a more accurate way to detect hits with a line-based shot
-        
-        // Vector from startPoint to player
-        const startToPlayer = new THREE.Vector3().subVectors(playerPosition, projectile.startPoint);
-        
-        // Project this vector onto the direction
-        const projectionLength = startToPlayer.dot(projectile.direction);
-        
-        // Clamp to the line segment
-        const clampedLength = Math.max(0, Math.min(projectionLength, projectile.startPoint.distanceTo(projectile.endPoint)));
-        
-        // Calculate the closest point on the line to the player
-        const closestPoint = new THREE.Vector3()
-          .copy(projectile.startPoint)
-          .add(projectile.direction.clone().multiplyScalar(clampedLength));
-        
-        // Calculate distance from closest point to player
-        const distanceToPlayer = closestPoint.distanceTo(playerPosition);
-        
-        // Player hit detection - use a reasonable radius
-        const playerHitRadius = 0.7; // Slightly reduced from before
-        
-        // Debug visualization for close calls (optional)
-        if (distanceToPlayer < 2.0) {
-          console.log(`Close shot! Distance: ${distanceToPlayer.toFixed(2)}`);
-        }
-        
-        // Check if hit
-        if (distanceToPlayer < playerHitRadius) {
-          hitPlayer = true;
-        }
+      // Check if player was hit
+      if (typeof projectile.checkPlayerHit === 'function') {
+        // Use checkPlayerHit method if available
+        hitPlayer = projectile.checkPlayerHit(playerPosition, 0.5); // Player radius of 0.5
       } else {
-        // Fallback to simpler hit detection if we don't have line data
-        const distanceToPlayer = projectile.position.distanceTo(playerPosition);
-        hitPlayer = distanceToPlayer < 0.8;
+        // Fallback to simplified distance check
+        const playerY = 1.0; // Approximate player height for hit detection
+        
+        // Check distance from shot line to player
+        const shotStart = projectile.startPoint || projectile.position;
+        const shotEnd = projectile.endPoint || projectile.position.clone().add(projectile.direction.clone().multiplyScalar(100));
+        
+        // Create a vector from shot start to end
+        const shotVector = new THREE.Vector3().subVectors(shotEnd, shotStart);
+        const shotLength = shotVector.length();
+        shotVector.normalize();
+        
+        // Create a vector from shot start to player
+        const playerVector = new THREE.Vector3().subVectors(
+          new THREE.Vector3(playerPosition.x, playerY, playerPosition.z),
+          shotStart
+        );
+        
+        // Calculate projection length
+        const projectionLength = playerVector.dot(shotVector);
+        
+        // Only check hits if the projection is within the shot length
+        if (projectionLength >= 0 && projectionLength <= shotLength) {
+          // Calculate closest point on the shot line to player
+          const closestPoint = new THREE.Vector3()
+            .copy(shotStart)
+            .add(shotVector.clone().multiplyScalar(projectionLength));
+          
+          // Check distance from closest point to player
+          const distanceToPlayer = closestPoint.distanceTo(
+            new THREE.Vector3(playerPosition.x, playerY, playerPosition.z)
+          );
+          
+          // If close enough, count as a hit
+          if (distanceToPlayer < 0.5) { // Player radius
+            hitPlayer = true;
+            console.log("Hit! Distance:", distanceToPlayer);
+          }
+        }
       }
       
       // Handle player hit

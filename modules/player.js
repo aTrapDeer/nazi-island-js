@@ -419,6 +419,9 @@ function checkCollisions(player, originalPosition) {
     // Skip if not collidable, or if it's the player itself
     if (!object.userData.collidable || object === player) return;
     
+    // Skip bushes - they are now walkthrough-able
+    if (object.userData.isBush) return;
+    
     // Calculate distance between player and object center (X-Z plane only)
     const dx = player.position.x - object.position.x;
     const dz = player.position.z - object.position.z;
@@ -440,7 +443,7 @@ function checkCollisions(player, originalPosition) {
           collision = true;
         }
       } else {
-        // Standard collision for trees, bushes, rocks, etc.
+        // Standard collision for trees, rocks, etc.
         collision = true;
       }
     }

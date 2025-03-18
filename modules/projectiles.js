@@ -3,6 +3,10 @@
  */
 import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 
+// Make functions available globally
+window.createWoodParticles = createWoodParticles;
+window.createLeafParticles = createLeafParticles;
+
 // Constants for projectile management
 const PROJECTILE_SPEED = 1.0;
 const MUZZLE_FLASH_DURATION = 50; // in ms
@@ -333,8 +337,8 @@ export function createAmmoPickup(scene, position, amount) {
 export function updateProjectiles(projectiles, enemies, scene, deltaTime) {
   const updatedProjectiles = [];
   
-  // Performance optimization: Skip processing if no projectiles or enemies
-  if (projectiles.length === 0 || enemies.length === 0) {
+  // Performance optimization: Skip processing if no projectiles
+  if (projectiles.length === 0) {
     return projectiles;
   }
   
@@ -394,6 +398,69 @@ export function updateProjectiles(projectiles, enemies, scene, deltaTime) {
       projectile.lastPosition,
       new THREE.Vector3().subVectors(projectile.object.position, projectile.lastPosition).normalize()
     );
+    
+    // Check for collisions with trees first
+    let treeHit = false;
+    // Use raycaster for more precise detection
+    const raycaster = new THREE.Raycaster(
+      projectile.lastPosition,
+      new THREE.Vector3().subVectors(projectile.object.position, projectile.lastPosition).normalize()
+    );
+    
+    // Check tree collisions
+    scene.traverse((object) => {
+      if (!treeHit && object.userData && object.userData.isTreePart) {
+        // Get all meshes in the tree group
+        const distanceToTree = projectile.object.position.distanceTo(object.position);
+        
+        // Only check trees within a reasonable distance
+        if (distanceToTree < 5) {
+          // For individual tree parts, check precise collision
+          if (object.isMesh) {
+            const intersects = raycaster.intersectObject(object, false);
+            if (intersects.length > 0) {
+              treeHit = true;
+              
+              // Handle tree destruction
+              console.log("Hit tree part:", object.userData);
+              
+              // Remove the hit tree part
+              if (object.parent) {
+                object.parent.remove(object);
+              }
+              
+              // If this was the trunk, remove the whole tree
+              if (object.userData.isTrunk) {
+                console.log("Hit trunk - destroying whole tree");
+                // Find the tree group (parent) and remove it
+                let treeGroup = object.parent;
+                while (treeGroup && !treeGroup.userData.isTree) {
+                  treeGroup = treeGroup.parent;
+                }
+                
+                if (treeGroup && treeGroup.parent) {
+                  // Add falling effect and wood particles
+                  createWoodParticles(scene, treeGroup.position.clone());
+                  treeGroup.parent.remove(treeGroup);
+                }
+              } else if (object.userData.isFoliage) {
+                // Create leaf particles
+                createLeafParticles(scene, intersects[0].point.clone());
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    // If projectile hit a tree, remove it
+    if (treeHit) {
+      scene.remove(projectile.object);
+      // Also remove trail and glow
+      if (projectile.trail) scene.remove(projectile.trail);
+      if (projectile.glow) scene.remove(projectile.glow);
+      continue;
+    }
     
     // Check for collisions with enemies
     let hit = false;
@@ -860,6 +927,35 @@ export function createEnemyProjectile(scene, position, direction, accuracy = 0.8
       return true; // Keep this shot
     },
     
+    // Method to check if this shot hit the player
+    checkPlayerHit: function(playerPosition, playerRadius = 0.5) {
+      // Calculate distance from player to shot line
+      // This uses the point-line distance formula in 3D space
+      const v = new THREE.Vector3().subVectors(this.endPoint, this.startPoint);
+      const w = new THREE.Vector3().subVectors(playerPosition, this.startPoint);
+      
+      const c1 = w.dot(v);
+      const c2 = v.dot(v);
+      
+      // If c1 <= 0, closest point is start point
+      if (c1 <= 0) {
+        return playerPosition.distanceTo(this.startPoint) < playerRadius;
+      }
+      
+      // If c2 <= c1, closest point is end point
+      if (c2 <= c1) {
+        return playerPosition.distanceTo(this.endPoint) < playerRadius;
+      }
+      
+      // Otherwise, closest point is along the line
+      const b = c1 / c2;
+      const closestPoint = new THREE.Vector3()
+        .addVectors(this.startPoint, v.clone().multiplyScalar(b));
+      
+      // Check if distance is less than playerRadius
+      return playerPosition.distanceTo(closestPoint) < playerRadius;
+    },
+    
     // Remove method - cleans up Three.js objects
     remove: function(scene) {
       if (this.line) {
@@ -875,4 +971,222 @@ export function createEnemyProjectile(scene, position, direction, accuracy = 0.8
       }
     }
   };
+}
+
+/**
+ * Creates wood debris particles when a tree is hit
+ * @param {THREE.Scene} scene - The scene to add particles to
+ * @param {THREE.Vector3} position - Position of the hit
+ */
+function createWoodParticles(scene, position) {
+  const numParticles = 15;
+  const particles = [];
+  
+  for (let i = 0; i < numParticles; i++) {
+    // Create a wood chip particle
+    const particleGeometry = new THREE.BoxGeometry(0.1 + Math.random() * 0.1, 0.05, 0.05);
+    const particleMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8B4513, // Brown
+      roughness: 0.9
+    });
+    const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+    
+    // Position at hit point with random offset
+    particle.position.copy(position);
+    particle.position.y += 1 + Math.random() * 0.5; // Position at trunk height
+    
+    // Random rotation
+    particle.rotation.x = Math.random() * Math.PI * 2;
+    particle.rotation.y = Math.random() * Math.PI * 2;
+    particle.rotation.z = Math.random() * Math.PI * 2;
+    
+    // Add to scene
+    scene.add(particle);
+    
+    // Random velocity
+    const velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.1,
+      Math.random() * 0.1,
+      (Math.random() - 0.5) * 0.1
+    );
+    
+    // Random rotation velocity
+    const rotationVelocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.2,
+      (Math.random() - 0.5) * 0.2,
+      (Math.random() - 0.5) * 0.2
+    );
+    
+    particles.push({
+      object: particle,
+      velocity: velocity,
+      rotationVelocity: rotationVelocity,
+      gravity: 0.005,
+      lifetime: 2000, // 2 seconds
+      startTime: Date.now()
+    });
+  }
+  
+  // Animate particles
+  function animateParticles() {
+    const now = Date.now();
+    let hasActiveParticles = false;
+    
+    for (let i = 0; i < particles.length; i++) {
+      const particle = particles[i];
+      const age = now - particle.startTime;
+      
+      if (age > particle.lifetime) {
+        scene.remove(particle.object);
+        continue;
+      }
+      
+      hasActiveParticles = true;
+      
+      // Apply velocity
+      particle.object.position.add(particle.velocity);
+      
+      // Apply gravity
+      particle.velocity.y -= particle.gravity;
+      
+      // Apply rotation
+      particle.object.rotation.x += particle.rotationVelocity.x;
+      particle.object.rotation.y += particle.rotationVelocity.y;
+      particle.object.rotation.z += particle.rotationVelocity.z;
+      
+      // Fade out
+      const opacity = 1 - (age / particle.lifetime);
+      if (particle.object.material.opacity !== undefined) {
+        particle.object.material.opacity = opacity;
+      }
+      
+      // Ground collision
+      if (particle.object.position.y < 0.05) {
+        particle.object.position.y = 0.05;
+        particle.velocity.y = -particle.velocity.y * 0.3; // Bounce with energy loss
+        particle.velocity.x *= 0.8; // Friction
+        particle.velocity.z *= 0.8; // Friction
+      }
+    }
+    
+    if (hasActiveParticles) {
+      requestAnimationFrame(animateParticles);
+    }
+  }
+  
+  animateParticles();
+}
+
+/**
+ * Creates leaf particles when foliage is hit
+ * @param {THREE.Scene} scene - The scene to add particles to
+ * @param {THREE.Vector3} position - Position of the hit
+ */
+function createLeafParticles(scene, position) {
+  const numParticles = 10;
+  const particles = [];
+  
+  for (let i = 0; i < numParticles; i++) {
+    // Create a leaf particle
+    const particleGeometry = new THREE.PlaneGeometry(0.1 + Math.random() * 0.1, 0.1 + Math.random() * 0.1);
+    const particleMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2E8B57, // Green
+      roughness: 0.9,
+      side: THREE.DoubleSide
+    });
+    const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+    
+    // Position at hit point with random offset
+    particle.position.copy(position);
+    particle.position.x += (Math.random() - 0.5) * 0.2;
+    particle.position.y += (Math.random() - 0.5) * 0.2;
+    particle.position.z += (Math.random() - 0.5) * 0.2;
+    
+    // Random rotation
+    particle.rotation.x = Math.random() * Math.PI * 2;
+    particle.rotation.y = Math.random() * Math.PI * 2;
+    particle.rotation.z = Math.random() * Math.PI * 2;
+    
+    // Add to scene
+    scene.add(particle);
+    
+    // Slower falling for leaves - floaty effect
+    const velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.05,
+      Math.random() * 0.02, // Initial up velocity
+      (Math.random() - 0.5) * 0.05
+    );
+    
+    // Random spinning rotation
+    const rotationVelocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.1,
+      (Math.random() - 0.5) * 0.1,
+      (Math.random() - 0.5) * 0.1
+    );
+    
+    particles.push({
+      object: particle,
+      velocity: velocity,
+      rotationVelocity: rotationVelocity,
+      gravity: 0.001, // Lower gravity for leaves
+      lifetime: 3000, // 3 seconds
+      startTime: Date.now(),
+      wobblePhase: Math.random() * Math.PI * 2, // Random starting phase for wobble
+      wobbleFrequency: 0.1 + Math.random() * 0.2 // Random wobble speed
+    });
+  }
+  
+  // Animate particles
+  function animateParticles() {
+    const now = Date.now();
+    let hasActiveParticles = false;
+    
+    for (let i = 0; i < particles.length; i++) {
+      const particle = particles[i];
+      const age = now - particle.startTime;
+      
+      if (age > particle.lifetime) {
+        scene.remove(particle.object);
+        continue;
+      }
+      
+      hasActiveParticles = true;
+      
+      // Apply velocity
+      particle.object.position.add(particle.velocity);
+      
+      // Apply gravity
+      particle.velocity.y -= particle.gravity;
+      
+      // Apply wobble for leaves (side to side motion)
+      particle.wobblePhase += particle.wobbleFrequency;
+      particle.velocity.x += Math.sin(particle.wobblePhase) * 0.001;
+      particle.velocity.z += Math.cos(particle.wobblePhase) * 0.001;
+      
+      // Apply rotation
+      particle.object.rotation.x += particle.rotationVelocity.x;
+      particle.object.rotation.y += particle.rotationVelocity.y;
+      particle.object.rotation.z += particle.rotationVelocity.z;
+      
+      // Fade out
+      const opacity = 1 - (age / particle.lifetime);
+      if (particle.object.material.opacity !== undefined) {
+        particle.object.material.opacity = opacity;
+        particle.object.material.transparent = true;
+      }
+      
+      // Ground collision
+      if (particle.object.position.y < 0.05) {
+        particle.object.position.y = 0.05;
+        particle.velocity.set(0, 0, 0); // Stop movement
+        particle.rotationVelocity.set(0, 0, 0); // Stop rotation
+      }
+    }
+    
+    if (hasActiveParticles) {
+      requestAnimationFrame(animateParticles);
+    }
+  }
+  
+  animateParticles();
 } 

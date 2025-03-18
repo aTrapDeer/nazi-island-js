@@ -1063,6 +1063,9 @@ function checkEnvironmentCollisions(enemyObject, scene, originalPosition) {
     // Skip if not collidable, or if it's an enemy
     if (!object.userData.collidable || object === enemyObject || isEnemy(object)) return;
     
+    // Skip bushes - they are now walkthrough-able
+    if (object.userData.isBush) return;
+    
     // Calculate distance between enemy and object center (X-Z plane only)
     const dx = enemyObject.position.x - object.position.x;
     const dz = enemyObject.position.z - object.position.z;
@@ -1084,7 +1087,7 @@ function checkEnvironmentCollisions(enemyObject, scene, originalPosition) {
           collision = true;
         }
       } else {
-        // Standard collision for trees, bushes, rocks, etc.
+        // Standard collision for trees, rocks, etc.
         collision = true;
       }
     }

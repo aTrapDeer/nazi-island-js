@@ -65,6 +65,27 @@ export class GameState {
   }
   
   /**
+   * Restore player's health and ammo after completing a wave
+   * @returns {Object} - Object containing the amount of health and ammo restored
+   */
+  restoreWaveCompletion() {
+    // Restore 50% of missing health
+    const missingHealth = 100 - this.health;
+    const healthToRestore = Math.round(missingHealth * 0.5);
+    this.health = Math.min(100, this.health + healthToRestore);
+    
+    // Add 15 ammo
+    const ammoToAdd = 15;
+    this.ammo += ammoToAdd;
+    
+    // Return the amounts restored for display
+    return {
+      healthRestored: healthToRestore,
+      ammoRestored: ammoToAdd
+    };
+  }
+  
+  /**
    * Progress to next wave
    */
   nextWave() {

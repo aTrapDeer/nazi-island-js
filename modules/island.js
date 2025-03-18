@@ -104,72 +104,195 @@ function addRocks(scene) {
  * @param {THREE.Scene} scene - The scene to add vegetation to
  */
 function addVegetation(scene) {
-  // Add some trees and bushes
-  for (let i = 0; i < 20; i++) {
+  // Add trees in clusters
+  const numTreeGroups = 7;
+  
+  for (let i = 0; i < numTreeGroups; i++) {
+    // Random position for tree cluster
     const angle = Math.random() * Math.PI * 2;
-    const distance = Math.random() * 35 + 10;
+    const distance = Math.random() * 35 + 10; // Trees within 10-45 units from center
+    
     const x = Math.cos(angle) * distance;
     const z = Math.sin(angle) * distance;
     
-    // Create a group for the tree (trunk + foliage)
-    const treeGroup = new THREE.Group();
-    treeGroup.position.set(x, 0, z);
-    scene.add(treeGroup);
+    // Create cluster of trees
+    const treeCount = 2 + Math.floor(Math.random() * 3); // 2-4 trees per cluster
     
-    // Add collision data to the tree group
-    treeGroup.userData.collidable = true;
-    treeGroup.userData.collisionRadius = 1.0; // Trunk radius
-    treeGroup.userData.isTree = true;
-    
-    // Tree trunk
-    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 2 + Math.random() * 2, 8);
-    const trunkMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8B4513, // Brown
-      roughness: 0.9
-    });
-    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.position.y = 1;
-    trunk.castShadow = true;
-    trunk.receiveShadow = true;
-    treeGroup.add(trunk);
-    
-    // Tree foliage
-    const foliageGeometry = new THREE.ConeGeometry(1.5, 3, 8);
-    const foliageMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2E8B57, // Dark green
-      roughness: 1.0
-    });
-    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-    foliage.position.y = 3.5;
-    foliage.castShadow = true;
-    treeGroup.add(foliage);
+    for (let j = 0; j < treeCount; j++) {
+      // Position trees within cluster
+      const clusterRadius = 2.5;
+      const treeAngle = Math.random() * Math.PI * 2;
+      const treeDistance = 1 + Math.random() * clusterRadius;
+      
+      const treeX = x + Math.cos(treeAngle) * treeDistance;
+      const treeZ = z + Math.sin(treeAngle) * treeDistance;
+      
+      // Ensure tree is within island radius
+      const distanceFromCenter = Math.sqrt(treeX * treeX + treeZ * treeZ);
+      if (distanceFromCenter < 50) {
+        // Create tree
+        createTree(scene, treeX, treeZ);
+      }
+    }
   }
   
-  // Add some bushes
-  for (let i = 0; i < 30; i++) {
+  // Add bushes
+  const numBushes = 25;
+  
+  for (let i = 0; i < numBushes; i++) {
+    // Random position
     const angle = Math.random() * Math.PI * 2;
-    const distance = Math.random() * 45;
+    const distance = Math.random() * 45; // Bushes within 45 units from center
+    
     const x = Math.cos(angle) * distance;
     const z = Math.sin(angle) * distance;
     
-    const bushSize = 0.5 + Math.random() * 0.5;
-    const bushGeometry = new THREE.SphereGeometry(bushSize, 8, 8);
-    const bushMaterial = new THREE.MeshStandardMaterial({
-      color: 0x567d46, // Green
-      roughness: 1.0
-    });
-    const bush = new THREE.Mesh(bushGeometry, bushMaterial);
-    bush.position.set(x, 0.5, z);
-    bush.castShadow = true;
-    bush.receiveShadow = true;
-    
-    // Add collision data
-    bush.userData.collidable = true;
-    bush.userData.collisionRadius = bushSize;
-    bush.userData.isBush = true;
-    
-    scene.add(bush);
+    // Create bush
+    createBush(scene, x, z);
   }
+}
+
+/**
+ * Creates a tree
+ * @param {THREE.Object3D} parent - The parent object
+ * @param {number} x - X position
+ * @param {number} z - Z position
+ */
+function createTree(parent, x, z) {
+  // Create tree group
+  const treeGroup = new THREE.Group();
+  treeGroup.position.set(x, 0, z);
+  
+  // Add trunk
+  const trunkHeight = 1.5 + Math.random() * 1.5; // 1.5-3.0 units tall
+  const trunkRadius = 0.2 + Math.random() * 0.1; // 0.2-0.3 units thick
+  
+  const trunkGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius * 1.2, trunkHeight, 8);
+  const trunkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x8B4513, // Brown
+    roughness: 0.9,
+    metalness: 0.1
+  });
+  
+  const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+  trunk.position.y = trunkHeight / 2;
+  trunk.castShadow = true;
+  trunk.receiveShadow = true;
+  trunk.userData.isTree = true;
+  trunk.userData.isTreePart = true;
+  trunk.userData.isTrunk = true;
+  treeGroup.add(trunk);
+  
+  // Add foliage (several parts to create a fuller tree)
+  const foliageHeight = trunkHeight * 1.5;
+  const foliageBottom = trunkHeight * 0.8; // Overlap with trunk
+  const foliageRadius = 1.0 + Math.random() * 0.5; // 1.0-1.5 units wide
+  
+  // Main foliage cone
+  const foliageGeometry = new THREE.ConeGeometry(foliageRadius, foliageHeight, 8);
+  const foliageMaterial = new THREE.MeshStandardMaterial({
+    color: 0x2E8B57, // Green
+    roughness: 0.9,
+    metalness: 0.1
+  });
+  
+  const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+  foliage.position.y = foliageBottom + foliageHeight / 2;
+  foliage.castShadow = true;
+  foliage.receiveShadow = true;
+  foliage.userData.isTree = true;
+  foliage.userData.isTreePart = true;
+  foliage.userData.isFoliage = true;
+  treeGroup.add(foliage);
+  
+  // Add secondary smaller foliage parts to make the tree fuller
+  for (let i = 0; i < 3; i++) {
+    const smallerRadius = foliageRadius * 0.8;
+    const smallerHeight = foliageHeight * 0.7;
+    const smallerGeometry = new THREE.ConeGeometry(smallerRadius, smallerHeight, 8);
+    
+    const smallerFoliage = new THREE.Mesh(smallerGeometry, foliageMaterial);
+    const angleOffset = (i * Math.PI * 2) / 3;
+    const radialDistance = foliageRadius * 0.4;
+    
+    smallerFoliage.position.set(
+      Math.cos(angleOffset) * radialDistance,
+      foliageBottom + smallerHeight / 2 + (Math.random() * 0.5),
+      Math.sin(angleOffset) * radialDistance
+    );
+    
+    smallerFoliage.castShadow = true;
+    smallerFoliage.receiveShadow = true;
+    smallerFoliage.userData.isTree = true;
+    smallerFoliage.userData.isTreePart = true;
+    smallerFoliage.userData.isFoliage = true;
+    treeGroup.add(smallerFoliage);
+  }
+  
+  // Mark tree as collidable
+  treeGroup.userData.collidable = true;
+  treeGroup.userData.collisionRadius = 0.8;
+  treeGroup.userData.isTree = true;
+  
+  // Add tree to parent
+  parent.add(treeGroup);
+}
+
+/**
+ * Creates a bush
+ * @param {THREE.Object3D} parent - The parent object
+ * @param {number} x - X position
+ * @param {number} z - Z position
+ */
+function createBush(parent, x, z) {
+  // Create bush group
+  const bushGroup = new THREE.Group();
+  bushGroup.position.set(x, 0, z);
+  
+  // Create several slightly overlapping spheres for a bush
+  const bushGeometry = new THREE.SphereGeometry(0.5, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+  const bushMaterial = new THREE.MeshStandardMaterial({
+    color: 0x2E8B57, // Same green as tree foliage
+    roughness: 0.9,
+    metalness: 0.1
+  });
+  
+  // Main bush part
+  const mainBush = new THREE.Mesh(bushGeometry, bushMaterial);
+  mainBush.position.y = 0.25; // Half height
+  mainBush.scale.set(1, 0.5, 1); // Flatten
+  mainBush.castShadow = true;
+  mainBush.receiveShadow = true;
+  bushGroup.add(mainBush);
+  
+  // Add additional parts
+  const bushSegments = 3 + Math.floor(Math.random() * 2); // 3-4 segments
+  
+  for (let i = 0; i < bushSegments; i++) {
+    const segment = mainBush.clone();
+    
+    // Random scaling
+    const scale = 0.6 + Math.random() * 0.4; // 0.6-1.0 scale
+    segment.scale.set(scale, scale * 0.5, scale);
+    
+    // Position
+    const angle = (i / bushSegments) * Math.PI * 2;
+    const distance = 0.2 + Math.random() * 0.2; // 0.2-0.4 distance from center
+    
+    segment.position.x = Math.cos(angle) * distance;
+    segment.position.z = Math.sin(angle) * distance;
+    segment.position.y = 0.25 * scale; // Adjusted for scale
+    
+    bushGroup.add(segment);
+  }
+  
+  // Mark bush as collidable
+  bushGroup.userData.collidable = true;
+  bushGroup.userData.collisionRadius = 0.6;
+  bushGroup.userData.isBush = true;
+  
+  // Add bush to parent
+  parent.add(bushGroup);
 }
 
 /**
