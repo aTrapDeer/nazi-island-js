@@ -345,7 +345,7 @@ function shoot(isAutomatic = false) {
   // Update UI
   updateUI();
   
-  // Create raycaster for bullet path
+  // Create raycaster for bullet path from the camera through the mouse position
   raycaster.setFromCamera(gameState.mousePosition, camera);
   
   // Get the exact position of the weapon
@@ -357,7 +357,7 @@ function shoot(isAutomatic = false) {
   const gunPosition = weaponPosition.clone();
   gunPosition.y += 0.1; // Adjust to barrel position
   
-  // Get shoot direction from raycaster
+  // Get shoot direction from raycaster pointing through the mouse cursor
   const direction = raycaster.ray.direction.clone().normalize();
   
   // Add recoil to the next shot
@@ -370,7 +370,7 @@ function shoot(isAutomatic = false) {
   const hit = checkDirectHit(gunPosition, direction);
   if (hit && hit.object && hit.object.parent && hit.object.parent.userData && hit.object.parent.userData.isEnemy) {
     // We hit an enemy directly
-    const enemy = hit.object.parent.userData.enemyObject;
+    const enemy = hit.object.parent.userData.enemyObject || hit.object.userData.parentEnemy;
     const hitPoint = hit.point.clone();
     
     // Get the body part that was hit
@@ -391,7 +391,9 @@ function shoot(isAutomatic = false) {
 // New function to check for direct hits based on cursor position
 function checkDirectHit(origin, direction) {
   // Cast a ray directly from the gun in the shooting direction
-  raycaster.set(origin, direction);
+  // Use separate raycaster instance to avoid interference with the main raycaster
+  const shootRaycaster = new THREE.Raycaster();
+  shootRaycaster.set(origin, direction);
   
   // Debug log for shooting
   console.log(`Shooting from ${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)} in direction ${direction.x.toFixed(2)}, ${direction.y.toFixed(2)}, ${direction.z.toFixed(2)}`);
@@ -423,7 +425,7 @@ function checkDirectHit(origin, direction) {
   console.log(`Checking for hits against ${hitTargets.length} meshes`);
   
   // Get intersections with all potential targets
-  const intersects = raycaster.intersectObjects(hitTargets, false);
+  const intersects = shootRaycaster.intersectObjects(hitTargets, false);
   
   if (intersects.length > 0) {
     // We hit something!
@@ -465,14 +467,17 @@ function checkDirectHit(origin, direction) {
       
       console.log(`Hit enemy at part: ${bodyPart}`);
       
-      // Call the hit handler with the determined body part
-      handleEnemyHit(enemy, hit.point, direction, bodyPart);
+      // Return the hit information
+      return hit;
     } else {
       console.log("Hit object has no parent enemy reference");
     }
   } else {
     console.log("No direct hits detected");
   }
+  
+  // Return undefined if no hit was found
+  return undefined;
 }
 
 /**

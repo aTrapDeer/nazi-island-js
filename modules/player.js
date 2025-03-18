@@ -209,9 +209,6 @@ export function createPlayer(scene) {
   // Rotate the head to face forward
   headGroup.rotation.y = Math.PI;
   
-  // Rotate the weapon to face forward
-  weaponGroup.rotation.y = Math.PI;
-  
   // Store animation-related properties
   player.userData = {
     // Animation properties
@@ -618,11 +615,33 @@ export function updatePlayerWeapon(player, weaponType) {
   
   // Adjust weapon position based on type
   if (weaponType === WEAPONS.MP41) {
-    // MP41 is shorter, adjust position
-    player.userData.weaponGroup.position.set(0.55, 0.9, 0.2);
+    // MP41 position adjustments - more realistic positioning and angle
+    player.userData.weaponGroup.position.set(0.48, 0.82, 0.38);
+    
+    // Rotate to match a more natural aiming position
+    player.userData.weaponGroup.rotation.set(0.02, 0.08, -0.02);
+    
+    // Store the original rotation for aiming calculations
+    player.userData.weaponGroup.userData = {
+      originalRotation: {
+        x: 0.02,
+        y: 0.08,
+        z: -0.02
+      }
+    };
   } else {
-    // Rifle position
+    // M1 Garand position - slightly adjusted for better look
     player.userData.weaponGroup.position.set(0.55, 0.9, 0.3);
+    player.userData.weaponGroup.rotation.set(0, 0, 0);
+    
+    // Store the original rotation for aiming calculations
+    player.userData.weaponGroup.userData = {
+      originalRotation: {
+        x: 0,
+        y: 0,
+        z: 0
+      }
+    };
   }
 }
 

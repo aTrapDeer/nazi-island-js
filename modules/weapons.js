@@ -85,59 +85,216 @@ function createWeaponModel(weaponType) {
   const weaponGroup = new THREE.Group();
   
   if (weaponType === WEAPONS.MP41) {
-    // MP41 Submachine Gun - improved model, all black
-    const bodyGeometry = new THREE.BoxGeometry(0.12, 0.12, 0.8);
-    const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: 0x111111, // Black metal for entire gun
-      metalness: 0.8,
+    // MP41 Submachine Gun - all-black stylized model
+    // Materials - all black with different finishes
+    const metalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111111, // Pure black for main metal parts
+      metalness: 0.9,
+      roughness: 0.3
+    });
+    
+    const darkMetalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0a0a0a, // Slightly darker black for accent parts
+      metalness: 0.95,
       roughness: 0.2
     });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    weaponGroup.add(body);
     
-    // MP41 Barrel - longer, thinner
-    const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 8);
-    const barrel = new THREE.Mesh(barrelGeometry, bodyMaterial);
+    const matteBlackMaterial = new THREE.MeshStandardMaterial({
+      color: 0x151515, // Slightly lighter black for grip parts
+      metalness: 0.3,
+      roughness: 0.8
+    });
+    
+    // Main receiver - more rectangular with rounded edges
+    const receiverGeometry = new THREE.BoxGeometry(0.11, 0.11, 0.8);
+    receiverGeometry.translate(0, 0, 0.1); // Center properly
+    const receiver = new THREE.Mesh(receiverGeometry, metalMaterial);
+    weaponGroup.add(receiver);
+    
+    // Barrel - longer and thinner
+    const barrelGeometry = new THREE.CylinderGeometry(0.022, 0.022, 1.0, 16);
+    const barrel = new THREE.Mesh(barrelGeometry, darkMetalMaterial);
     barrel.rotation.x = Math.PI / 2;
-    barrel.position.z = 0.7; // Extend forward
+    barrel.position.z = 0.6; // Extend forward
     weaponGroup.add(barrel);
     
-    // MP41 Magazine - straight magazine
-    const magGeometry = new THREE.BoxGeometry(0.1, 0.35, 0.08);
-    const magazine = new THREE.Mesh(magGeometry, bodyMaterial);
-    magazine.position.set(0, -0.22, 0.1);
-    magazine.rotation.x = -Math.PI / 12; // Slight angle
+    // Barrel shroud/cooling jacket
+    const shroudGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.7, 16);
+    const shroud = new THREE.Mesh(shroudGeometry, metalMaterial);
+    shroud.rotation.x = Math.PI / 2;
+    shroud.position.z = 0.45; 
+    weaponGroup.add(shroud);
+    
+    // Add holes in the barrel shroud - more of them for realism
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      // Create two columns of holes
+      for (let j = 0; j < 5; j++) {
+        const holeGeometry = new THREE.CylinderGeometry(0.008, 0.008, 0.1, 8);
+        const hole = new THREE.Mesh(holeGeometry, darkMetalMaterial);
+        
+        hole.position.set(
+          Math.cos(angle) * 0.042,
+          Math.sin(angle) * 0.042,
+          0.25 + j * 0.12
+        );
+        hole.rotation.x = Math.PI / 2;
+        weaponGroup.add(hole);
+      }
+    }
+    
+    // Magazine - more accurate straight box magazine
+    const magGeometry = new THREE.BoxGeometry(0.07, 0.28, 0.045);
+    const magazine = new THREE.Mesh(magGeometry, darkMetalMaterial);
+    magazine.position.set(0, -0.19, 0.15);
+    magazine.rotation.x = -Math.PI / 20; // Very slight angle
     weaponGroup.add(magazine);
     
-    // MP41 Stock - metal folding stock
-    const stockGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.5);
-    const stock = new THREE.Mesh(stockGeometry, bodyMaterial);
-    stock.position.set(0, 0, -0.4);
-    weaponGroup.add(stock);
+    // Magazine housing - more detailed
+    const magHousingGeometry = new THREE.BoxGeometry(0.09, 0.05, 0.07);
+    const magHousing = new THREE.Mesh(magHousingGeometry, metalMaterial);
+    magHousing.position.set(0, -0.055, 0.15);
+    weaponGroup.add(magHousing);
     
-    // MP41 Grip
-    const gripGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.1);
-    const grip = new THREE.Mesh(gripGeometry, bodyMaterial);
-    grip.position.set(0, -0.15, -0.1);
-    weaponGroup.add(grip);
+    // Add magazine release tab
+    const magReleaseGeometry = new THREE.BoxGeometry(0.02, 0.02, 0.02);
+    const magRelease = new THREE.Mesh(magReleaseGeometry, darkMetalMaterial);
+    magRelease.position.set(-0.06, -0.05, 0.15);
+    weaponGroup.add(magRelease);
     
-    // Front sight
-    const frontSightGeometry = new THREE.BoxGeometry(0.03, 0.06, 0.03);
-    const frontSight = new THREE.Mesh(frontSightGeometry, bodyMaterial);
-    frontSight.position.set(0, 0.08, 0.6);
+    // MP41 stock base - more detailed
+    const stockBaseGeometry = new THREE.BoxGeometry(0.09, 0.09, 0.12);
+    const stockBase = new THREE.Mesh(stockBaseGeometry, metalMaterial);
+    stockBase.position.set(0, 0, -0.35);
+    weaponGroup.add(stockBase);
+    
+    // Folding stock mechanism - more accurate
+    const stockPivotGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.11, 8);
+    const stockPivot = new THREE.Mesh(stockPivotGeometry, darkMetalMaterial);
+    stockPivot.rotation.z = Math.PI / 2;
+    stockPivot.position.set(0, -0.03, -0.38);
+    weaponGroup.add(stockPivot);
+    
+    // Stock bars (folded under) - thinner and more detailed
+    const stockBarGeometry = new THREE.BoxGeometry(0.015, 0.015, 0.45);
+    
+    // Left bar
+    const leftBar = new THREE.Mesh(stockBarGeometry, metalMaterial);
+    leftBar.position.set(-0.03, -0.07, -0.18);
+    weaponGroup.add(leftBar);
+    
+    // Right bar
+    const rightBar = new THREE.Mesh(stockBarGeometry, metalMaterial);
+    rightBar.position.set(0.03, -0.07, -0.18);
+    weaponGroup.add(rightBar);
+    
+    // Pistol grip - more angled and ergonomic like the real MP41
+    const gripGroup = new THREE.Group();
+    gripGroup.position.set(0, -0.15, -0.15);
+    gripGroup.rotation.x = Math.PI / 5; // More angled grip
+    weaponGroup.add(gripGroup);
+    
+    const gripGeometry = new THREE.BoxGeometry(0.06, 0.18, 0.04);
+    const grip = new THREE.Mesh(gripGeometry, matteBlackMaterial);
+    gripGroup.add(grip);
+    
+    // Add grip texture lines
+    for (let i = 0; i < 5; i++) {
+      const gripLineGeometry = new THREE.BoxGeometry(0.062, 0.005, 0.042);
+      const gripLine = new THREE.Mesh(gripLineGeometry, darkMetalMaterial);
+      gripLine.position.y = 0.05 - i * 0.03;
+      gripGroup.add(gripLine);
+    }
+    
+    // Add front handgrip under barrel - distinctive to MP41
+    const handgripGeometry = new THREE.BoxGeometry(0.06, 0.12, 0.05);
+    const handgrip = new THREE.Mesh(handgripGeometry, matteBlackMaterial);
+    handgrip.position.set(0, -0.11, 0.35);
+    weaponGroup.add(handgrip);
+    
+    // Front sight - taller and more accurate
+    const frontSightGeometry = new THREE.BoxGeometry(0.015, 0.05, 0.015);
+    const frontSight = new THREE.Mesh(frontSightGeometry, darkMetalMaterial);
+    frontSight.position.set(0, 0.08, 0.85);
     weaponGroup.add(frontSight);
     
-    // Rear sight
-    const rearSightGeometry = new THREE.BoxGeometry(0.06, 0.04, 0.04);
-    const rearSight = new THREE.Mesh(rearSightGeometry, bodyMaterial);
-    rearSight.position.set(0, 0.08, 0.0);
-    weaponGroup.add(rearSight);
+    // Rear sight - better hooded shape
+    const rearSightBaseGeometry = new THREE.BoxGeometry(0.08, 0.02, 0.04);
+    const rearSightBase = new THREE.Mesh(rearSightBaseGeometry, metalMaterial);
+    rearSightBase.position.set(0, 0.07, -0.05);
+    weaponGroup.add(rearSightBase);
     
-    // Bolt handle
-    const boltGeometry = new THREE.BoxGeometry(0.03, 0.06, 0.1);
-    const bolt = new THREE.Mesh(boltGeometry, bodyMaterial);
-    bolt.position.set(0.08, 0.06, -0.1);
-    weaponGroup.add(bolt);
+    const rearSightNotchGeometry = new THREE.BoxGeometry(0.02, 0.03, 0.01);
+    const rearSightNotch = new THREE.Mesh(rearSightNotchGeometry, darkMetalMaterial);
+    rearSightNotch.position.set(0, 0.09, -0.05);
+    weaponGroup.add(rearSightNotch);
+    
+    // Add side plates to the rear sight
+    const sightPlateGeometry = new THREE.BoxGeometry(0.01, 0.03, 0.04);
+    
+    const leftSightPlate = new THREE.Mesh(sightPlateGeometry, metalMaterial);
+    leftSightPlate.position.set(-0.04, 0.08, -0.05);
+    weaponGroup.add(leftSightPlate);
+    
+    const rightSightPlate = new THREE.Mesh(sightPlateGeometry, metalMaterial);
+    rightSightPlate.position.set(0.04, 0.08, -0.05);
+    weaponGroup.add(rightSightPlate);
+    
+    // Charging handle - distinctive curved handle
+    const boltHandleGeometry = new THREE.CylinderGeometry(0.012, 0.012, 0.08, 8);
+    const boltHandle = new THREE.Mesh(boltHandleGeometry, darkMetalMaterial);
+    boltHandle.rotation.z = Math.PI / 2;
+    boltHandle.position.set(0.08, 0.03, -0.1);
+    weaponGroup.add(boltHandle);
+    
+    // Bolt handle knob
+    const boltKnobGeometry = new THREE.SphereGeometry(0.018, 8, 8);
+    const boltKnob = new THREE.Mesh(boltKnobGeometry, metalMaterial);
+    boltKnob.position.set(0.12, 0.03, -0.1);
+    weaponGroup.add(boltKnob);
+    
+    // Trigger - more detailed
+    const triggerGeometry = new THREE.BoxGeometry(0.02, 0.04, 0.01);
+    const trigger = new THREE.Mesh(triggerGeometry, darkMetalMaterial);
+    trigger.position.set(0, -0.05, -0.2);
+    weaponGroup.add(trigger);
+    
+    // Trigger guard - more oval shaped
+    const guardGeometry = new THREE.TorusGeometry(0.025, 0.005, 8, 16, Math.PI);
+    const guard = new THREE.Mesh(guardGeometry, metalMaterial);
+    guard.rotation.x = Math.PI / 2;
+    guard.position.set(0, -0.07, -0.2);
+    weaponGroup.add(guard);
+    
+    // Muzzle attachment - distinctive to MP41
+    const muzzleGeometry = new THREE.CylinderGeometry(0.03, 0.025, 0.1, 16);
+    const muzzle = new THREE.Mesh(muzzleGeometry, darkMetalMaterial);
+    muzzle.rotation.x = Math.PI / 2;
+    muzzle.position.z = 1.0;
+    weaponGroup.add(muzzle);
+    
+    // Add some weathering/detail to make it look more realistic
+    // Bolt track on side of receiver
+    const boltTrackGeometry = new THREE.BoxGeometry(0.015, 0.02, 0.5);
+    const boltTrack = new THREE.Mesh(boltTrackGeometry, darkMetalMaterial);
+    boltTrack.position.set(0.06, 0.02, 0.0);
+    weaponGroup.add(boltTrack);
+    
+    // Ejection port
+    const ejectionPortGeometry = new THREE.BoxGeometry(0.06, 0.02, 0.08);
+    const ejectionPort = new THREE.Mesh(ejectionPortGeometry, darkMetalMaterial);
+    ejectionPort.position.set(0.04, 0.06, -0.1);
+    weaponGroup.add(ejectionPort);
+    
+    // Add selector switch
+    const selectorGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.03, 8);
+    const selector = new THREE.Mesh(selectorGeometry, darkMetalMaterial);
+    selector.rotation.x = Math.PI / 2;
+    selector.position.set(-0.06, 0.02, -0.2);
+    weaponGroup.add(selector);
+    
+    // Rotate the weapon 180 degrees to fix the backwards barrel issue
+    weaponGroup.rotation.y = Math.PI;
   } else {
     // M1 Garand rifle
     const woodMaterial = new THREE.MeshStandardMaterial({
@@ -187,6 +344,9 @@ function createWeaponModel(weaponType) {
     const stock = new THREE.Mesh(stockGeometry, woodMaterial);
     stock.position.set(0, -0.01, -0.6);
     weaponGroup.add(stock);
+    
+    // Rotate the weapon 180 degrees to fix the backwards barrel issue
+    weaponGroup.rotation.y = Math.PI;
   }
   
   return weaponGroup;
@@ -425,6 +585,231 @@ function showPickupPrompt(type, show) {
  * @returns {THREE.Group} The weapon model
  */
 export function createPlayerWeaponModel(weaponType) {
-  // Same as createWeaponModel but positions for player's hands
-  return createWeaponModel(weaponType);
+  const weaponGroup = new THREE.Group();
+  
+  if (weaponType === WEAPONS.MP41) {
+    // MP41 Submachine Gun - historically accurate model based on the MP 41
+    // Materials - all black with different finishes
+    const metalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111111, // Pure black for main metal parts
+      metalness: 0.9,
+      roughness: 0.3
+    });
+    
+    const darkMetalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0a0a0a, // Slightly darker black for accent parts
+      metalness: 0.95,
+      roughness: 0.2
+    });
+    
+    const matteBlackMaterial = new THREE.MeshStandardMaterial({
+      color: 0x151515, // Slightly lighter black for grip parts
+      metalness: 0.3,
+      roughness: 0.8
+    });
+    
+    // Main receiver - more rectangular with rounded edges
+    const receiverGeometry = new THREE.BoxGeometry(0.11, 0.11, 0.8);
+    receiverGeometry.translate(0, 0, 0.1); // Center properly
+    const receiver = new THREE.Mesh(receiverGeometry, metalMaterial);
+    weaponGroup.add(receiver);
+    
+    // Barrel - longer and thinner
+    const barrelGeometry = new THREE.CylinderGeometry(0.022, 0.022, 1.0, 16);
+    const barrel = new THREE.Mesh(barrelGeometry, darkMetalMaterial);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.z = 0.6; // Extend forward
+    weaponGroup.add(barrel);
+    
+    // Barrel shroud/cooling jacket - more detailed with perforations
+    const shroudGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.7, 16);
+    const shroud = new THREE.Mesh(shroudGeometry, metalMaterial);
+    shroud.rotation.x = Math.PI / 2;
+    shroud.position.z = 0.45; 
+    weaponGroup.add(shroud);
+    
+    // Add holes in the barrel shroud - more of them for realism
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      // Create two columns of holes
+      for (let j = 0; j < 5; j++) {
+        const holeGeometry = new THREE.CylinderGeometry(0.008, 0.008, 0.1, 8);
+        const hole = new THREE.Mesh(holeGeometry, darkMetalMaterial);
+        
+        hole.position.set(
+          Math.cos(angle) * 0.042,
+          Math.sin(angle) * 0.042,
+          0.25 + j * 0.12
+        );
+        hole.rotation.x = Math.PI / 2;
+        weaponGroup.add(hole);
+      }
+    }
+    
+    // Magazine - more accurate straight box magazine
+    const magGeometry = new THREE.BoxGeometry(0.07, 0.28, 0.045);
+    const magazine = new THREE.Mesh(magGeometry, darkMetalMaterial);
+    magazine.position.set(0, -0.19, 0.15);
+    magazine.rotation.x = -Math.PI / 20; // Very slight angle
+    weaponGroup.add(magazine);
+    
+    // Magazine housing - more detailed
+    const magHousingGeometry = new THREE.BoxGeometry(0.09, 0.05, 0.07);
+    const magHousing = new THREE.Mesh(magHousingGeometry, metalMaterial);
+    magHousing.position.set(0, -0.055, 0.15);
+    weaponGroup.add(magHousing);
+    
+    // Add magazine release tab
+    const magReleaseGeometry = new THREE.BoxGeometry(0.02, 0.02, 0.02);
+    const magRelease = new THREE.Mesh(magReleaseGeometry, darkMetalMaterial);
+    magRelease.position.set(-0.06, -0.05, 0.15);
+    weaponGroup.add(magRelease);
+    
+    // MP41 stock base - more detailed
+    const stockBaseGeometry = new THREE.BoxGeometry(0.09, 0.09, 0.12);
+    const stockBase = new THREE.Mesh(stockBaseGeometry, metalMaterial);
+    stockBase.position.set(0, 0, -0.35);
+    weaponGroup.add(stockBase);
+    
+    // Folding stock mechanism - more accurate
+    const stockPivotGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.11, 8);
+    const stockPivot = new THREE.Mesh(stockPivotGeometry, darkMetalMaterial);
+    stockPivot.rotation.z = Math.PI / 2;
+    stockPivot.position.set(0, -0.03, -0.38);
+    weaponGroup.add(stockPivot);
+    
+    // Stock bars (folded under) - thinner and more detailed
+    const stockBarGeometry = new THREE.BoxGeometry(0.015, 0.015, 0.45);
+    
+    // Left bar
+    const leftBar = new THREE.Mesh(stockBarGeometry, metalMaterial);
+    leftBar.position.set(-0.03, -0.07, -0.18);
+    weaponGroup.add(leftBar);
+    
+    // Right bar
+    const rightBar = new THREE.Mesh(stockBarGeometry, metalMaterial);
+    rightBar.position.set(0.03, -0.07, -0.18);
+    weaponGroup.add(rightBar);
+    
+    // Pistol grip - more angled and ergonomic like the real MP41
+    const gripGroup = new THREE.Group();
+    gripGroup.position.set(0, -0.15, -0.15);
+    gripGroup.rotation.x = Math.PI / 5; // More angled grip
+    weaponGroup.add(gripGroup);
+    
+    const gripGeometry = new THREE.BoxGeometry(0.06, 0.18, 0.04);
+    const grip = new THREE.Mesh(gripGeometry, matteBlackMaterial);
+    gripGroup.add(grip);
+    
+    // Add grip texture lines
+    for (let i = 0; i < 5; i++) {
+      const gripLineGeometry = new THREE.BoxGeometry(0.062, 0.005, 0.042);
+      const gripLine = new THREE.Mesh(gripLineGeometry, darkMetalMaterial);
+      gripLine.position.y = 0.05 - i * 0.03;
+      gripGroup.add(gripLine);
+    }
+    
+    // Add front handgrip under barrel - distinctive to MP41
+    const handgripGeometry = new THREE.BoxGeometry(0.06, 0.12, 0.05);
+    const handgrip = new THREE.Mesh(handgripGeometry, matteBlackMaterial);
+    handgrip.position.set(0, -0.11, 0.35);
+    weaponGroup.add(handgrip);
+    
+    // Front sight - taller and more accurate
+    const frontSightGeometry = new THREE.BoxGeometry(0.015, 0.05, 0.015);
+    const frontSight = new THREE.Mesh(frontSightGeometry, darkMetalMaterial);
+    frontSight.position.set(0, 0.08, 0.85);
+    weaponGroup.add(frontSight);
+    
+    // Rear sight - better hooded shape
+    const rearSightBaseGeometry = new THREE.BoxGeometry(0.08, 0.02, 0.04);
+    const rearSightBase = new THREE.Mesh(rearSightBaseGeometry, metalMaterial);
+    rearSightBase.position.set(0, 0.07, -0.05);
+    weaponGroup.add(rearSightBase);
+    
+    const rearSightNotchGeometry = new THREE.BoxGeometry(0.02, 0.03, 0.01);
+    const rearSightNotch = new THREE.Mesh(rearSightNotchGeometry, darkMetalMaterial);
+    rearSightNotch.position.set(0, 0.09, -0.05);
+    weaponGroup.add(rearSightNotch);
+    
+    // Add side plates to the rear sight
+    const sightPlateGeometry = new THREE.BoxGeometry(0.01, 0.03, 0.04);
+    
+    const leftSightPlate = new THREE.Mesh(sightPlateGeometry, metalMaterial);
+    leftSightPlate.position.set(-0.04, 0.08, -0.05);
+    weaponGroup.add(leftSightPlate);
+    
+    const rightSightPlate = new THREE.Mesh(sightPlateGeometry, metalMaterial);
+    rightSightPlate.position.set(0.04, 0.08, -0.05);
+    weaponGroup.add(rightSightPlate);
+    
+    // Charging handle - distinctive curved handle
+    const boltHandleGeometry = new THREE.CylinderGeometry(0.012, 0.012, 0.08, 8);
+    const boltHandle = new THREE.Mesh(boltHandleGeometry, darkMetalMaterial);
+    boltHandle.rotation.z = Math.PI / 2;
+    boltHandle.position.set(0.08, 0.03, -0.1);
+    weaponGroup.add(boltHandle);
+    
+    // Bolt handle knob
+    const boltKnobGeometry = new THREE.SphereGeometry(0.018, 8, 8);
+    const boltKnob = new THREE.Mesh(boltKnobGeometry, metalMaterial);
+    boltKnob.position.set(0.12, 0.03, -0.1);
+    weaponGroup.add(boltKnob);
+    
+    // Trigger - more detailed
+    const triggerGeometry = new THREE.BoxGeometry(0.02, 0.04, 0.01);
+    const trigger = new THREE.Mesh(triggerGeometry, darkMetalMaterial);
+    trigger.position.set(0, -0.05, -0.2);
+    weaponGroup.add(trigger);
+    
+    // Trigger guard - more oval shaped
+    const guardGeometry = new THREE.TorusGeometry(0.025, 0.005, 8, 16, Math.PI);
+    const guard = new THREE.Mesh(guardGeometry, metalMaterial);
+    guard.rotation.x = Math.PI / 2;
+    guard.position.set(0, -0.07, -0.2);
+    weaponGroup.add(guard);
+    
+    // Muzzle attachment - distinctive to MP41
+    const muzzleGeometry = new THREE.CylinderGeometry(0.03, 0.025, 0.1, 16);
+    const muzzle = new THREE.Mesh(muzzleGeometry, darkMetalMaterial);
+    muzzle.rotation.x = Math.PI / 2;
+    muzzle.position.z = 1.0;
+    weaponGroup.add(muzzle);
+    
+    // Add some weathering/detail to make it look more realistic
+    // Bolt track on side of receiver
+    const boltTrackGeometry = new THREE.BoxGeometry(0.015, 0.02, 0.5);
+    const boltTrack = new THREE.Mesh(boltTrackGeometry, darkMetalMaterial);
+    boltTrack.position.set(0.06, 0.02, 0.0);
+    weaponGroup.add(boltTrack);
+    
+    // Ejection port
+    const ejectionPortGeometry = new THREE.BoxGeometry(0.06, 0.02, 0.08);
+    const ejectionPort = new THREE.Mesh(ejectionPortGeometry, darkMetalMaterial);
+    ejectionPort.position.set(0.04, 0.06, -0.1);
+    weaponGroup.add(ejectionPort);
+    
+    // Add selector switch
+    const selectorGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.03, 8);
+    const selector = new THREE.Mesh(selectorGeometry, darkMetalMaterial);
+    selector.rotation.x = Math.PI / 2;
+    selector.position.set(-0.06, 0.02, -0.2);
+    weaponGroup.add(selector);
+    
+    // Model adjustments for first-person view
+    weaponGroup.position.set(0, 0, 0.1);
+    weaponGroup.rotation.set(0, 0, 0);
+    weaponGroup.scale.set(1.1, 1.1, 1.1); // Slightly larger for better visibility
+    
+    // Rotate the weapon 180 degrees to fix the backwards barrel issue
+    weaponGroup.rotation.y = Math.PI;
+  } else {
+    // M1 Garand rifle - create and rotate
+    const garandGroup = createWeaponModel(weaponType);
+    // Rotate the weapon 180 degrees to fix the backwards barrel issue
+    garandGroup.rotation.y = Math.PI;
+    return garandGroup;
+  }
+  
+  return weaponGroup;
 } 
