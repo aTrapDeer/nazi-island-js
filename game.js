@@ -3,10 +3,11 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/thr
 
 // Import our modules
 import { createIsland } from './modules/island.js';
-import { createPlayer, updatePlayerPosition, triggerShootAnimation } from './modules/player.js';
-import { createEnemy, spawnWave, updateEnemies, triggerEnemyHitAnimation, dismemberEnemyPart, triggerEnemyDeathAnimation, updateBoats } from './modules/enemies.js';
+import { createPlayer, updatePlayerPosition, triggerShootAnimation, updatePlayerWeapon } from './modules/player.js';
+import { createEnemy, spawnWave, updateEnemies, triggerEnemyHitAnimation, dismemberEnemyPart, triggerEnemyDeathAnimation, updateBoats, createEnemyDrops } from './modules/enemies.js';
 import { createProjectile, createAmmoPickup, updateProjectiles, updateAmmoPickups, createMuzzleFlash, createEnemyProjectile } from './modules/projectiles.js';
 import { GameState } from './modules/gameState.js';
+import { WEAPONS, AMMO_TYPES, createWeaponPickup, createMP41AmmoPickup, updateWeaponPickups, updateMP41AmmoPickups } from './modules/weapons.js';
 
 // Game constants
 const ISLAND_RADIUS = 50;
@@ -33,8 +34,10 @@ let gameState;
 let player, island;
 let enemies = [];
 let projectiles = [];
-let enemyProjectiles = []; // New array to track enemy bullets
+let enemyProjectiles = [];
 let ammoPickups = [];
+let weaponPickups = [];
+let mp41AmmoPickups = [];
 let keyState = {};
 let raycaster = new THREE.Raycaster();
 let groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -140,6 +143,24 @@ function init() {
   
   // Create debug overlay (hidden by default)
   createDebugOverlay();
+  
+  // Add weapon switching to key handlers
+  document.addEventListener('keydown', (event) => {
+    if (gameState.isGameOver) return;
+    
+    keyState[event.code] = true;
+    
+    // Handle weapon switching
+    if (event.code === 'Digit1') {
+      if (gameState.switchWeapon(WEAPONS.RIFLE)) {
+        updatePlayerWeapon(player, WEAPONS.RIFLE);
+      }
+    } else if (event.code === 'Digit2') {
+      if (gameState.switchWeapon(WEAPONS.MP41)) {
+        updatePlayerWeapon(player, WEAPONS.MP41);
+      }
+    }
+  });
 }
 
 function setupLighting() {
@@ -707,6 +728,15 @@ function handleEnemyHit(enemy, hitPoint, hitDirection, bodyPart) {
       ammoPickups.push(ammoPickup);
       console.log(`Ammo dropped: ${AMMO_DROP_AMOUNT} rounds`);
     }
+    
+    // Create drops when enemy dies
+    if (enemy.isDead) {
+      const drops = createEnemyDrops(scene, enemy.object.position, gameState.wave, isHeadshot);
+      
+      // Add new pickups to arrays
+      weaponPickups = weaponPickups.concat(drops.weaponPickups);
+      mp41AmmoPickups = mp41AmmoPickups.concat(drops.mp41AmmoPickups);
+    }
   }
   
   // Apply dismemberment with random chance (but only if not already done for head)
@@ -1250,6 +1280,16 @@ function animate() {
       // Update UI
       updateUI();
     });
+    
+    // Update weapon pickups
+    if (weaponPickups.length > 0) {
+      weaponPickups = updateWeaponPickups(weaponPickups, player, scene, handleWeaponCollected, keyState);
+    }
+    
+    // Update MP41 ammo pickups
+    if (mp41AmmoPickups.length > 0) {
+      mp41AmmoPickups = updateMP41AmmoPickups(mp41AmmoPickups, player, scene, handleAmmoCollected, keyState);
+    }
     
     // Update particles with reduced processing for better performance
     if (!gameState.reducedEffects || frameCount % 2 === 0) {
@@ -2333,5 +2373,58 @@ function playSound(soundType, volume = 1.0) {
     // Handle autoplay restrictions quietly
     console.log(`Sound playback failed: ${error.message}`);
   });
+}
+
+/**
+ * Handles when a weapon is collected
+ * @param {string} weaponType - Type of weapon collected
+ */
+function handleWeaponCollected(weaponType) {
+  gameState.collectWeapon(weaponType);
+  updatePlayerWeapon(player, weaponType);
+  
+  // Show pickup notification
+  showPickupNotification(`Picked up ${weaponType.toUpperCase()}`);
+}
+
+/**
+ * Handles when ammo is collected
+ * @param {number} amount - Amount of ammo collected
+ * @param {string} ammoType - Type of ammo collected
+ */
+function handleAmmoCollected(amount, ammoType) {
+  gameState.addAmmo(amount, ammoType);
+  
+  // Show pickup notification
+  const weaponName = ammoType === AMMO_TYPES.MP41 ? 'MP41' : 'Standard';
+  showPickupNotification(`Picked up ${amount} ${weaponName} ammo`);
+}
+
+/**
+ * Shows a pickup notification
+ * @param {string} message - Message to display
+ */
+function showPickupNotification(message) {
+  const notification = document.createElement('div');
+  notification.style.position = 'absolute';
+  notification.style.top = '50%';
+  notification.style.left = '50%';
+  notification.style.transform = 'translate(-50%, -50%)';
+  notification.style.color = 'white';
+  notification.style.fontFamily = 'Arial, sans-serif';
+  notification.style.fontSize = '24px';
+  notification.style.textShadow = '2px 2px 3px rgba(0, 0, 0, 0.8)';
+  notification.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+  notification.style.padding = '15px 30px';
+  notification.style.borderRadius = '5px';
+  notification.style.pointerEvents = 'none';
+  notification.textContent = message;
+  
+  document.body.appendChild(notification);
+  
+  // Remove after 2 seconds
+  setTimeout(() => {
+    notification.remove();
+  }, 2000);
 }
   

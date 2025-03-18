@@ -2,6 +2,7 @@
  * Player module for creating and updating the player character
  */
 import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+import { WEAPONS, createPlayerWeaponModel } from './weapons.js';
 
 /**
  * Creates the player character with a more detailed soldier model
@@ -193,45 +194,13 @@ export function createPlayer(scene) {
   weaponGroup.position.set(0.55, 0.9, 0.3); // Positive Z is front direction now
   player.add(weaponGroup);
   
-  // Rifle body
-  const rifleGeometry = new THREE.BoxGeometry(0.12, 0.12, 1.8);
-  const rifleMaterial = new THREE.MeshStandardMaterial({
-    color: 0x5d4037, // Brown wood
-    roughness: 0.8
-  });
-  const rifle = new THREE.Mesh(rifleGeometry, rifleMaterial);
-  weaponGroup.add(rifle);
+  // Create initial weapon model (rifle)
+  const weaponModel = createPlayerWeaponModel(WEAPONS.RIFLE);
+  weaponGroup.add(weaponModel);
   
-  // Rifle stock
-  const stockGeometry = new THREE.BoxGeometry(0.15, 0.3, 0.5);
-  const stock = new THREE.Mesh(stockGeometry, rifleMaterial);
-  stock.position.set(0, -0.1, -0.65); // Negative Z for stock
-  weaponGroup.add(stock);
-  
-  // Rifle barrel
-  const barrelGeometry = new THREE.CylinderGeometry(0.04, 0.04, 1.3, 8);
-  const barrelMaterial = new THREE.MeshStandardMaterial({
-    color: 0x333333, // Dark metal
-    metalness: 0.8,
-    roughness: 0.2
-  });
-  const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
-  barrel.rotation.x = Math.PI / 2;
-  barrel.position.z = 0.8; // Positive Z for barrel
-  weaponGroup.add(barrel);
-  
-  // Rifle sight
-  const sightGeometry = new THREE.BoxGeometry(0.03, 0.08, 0.03);
-  const sight = new THREE.Mesh(sightGeometry, barrelMaterial);
-  sight.position.set(0, 0.1, 0.7); // Positive Z for sight
-  weaponGroup.add(sight);
-  
-  // Rifle trigger guard
-  const guardGeometry = new THREE.TorusGeometry(0.06, 0.02, 8, 8, Math.PI);
-  const guard = new THREE.Mesh(guardGeometry, barrelMaterial);
-  guard.rotation.x = Math.PI / 2;
-  guard.position.set(0, -0.05, -0.1); // Negative Z for trigger
-  weaponGroup.add(guard);
+  // Store weapon-related properties
+  player.userData.weaponGroup = weaponGroup;
+  player.userData.currentWeaponModel = weaponModel;
   
   // Rotate the entire player model 180 degrees so the back faces the camera
   // This ensures the player's back is facing the camera in third-person view
@@ -630,22 +599,54 @@ function updatePlayerAnimations(player, deltaTime) {
 }
 
 /**
- * Triggers the shooting animation for the player
- * @param {THREE.Object3D} player - The player object
+ * Updates the player's weapon model based on current weapon
+ * @param {THREE.Group} player - The player object
+ * @param {string} weaponType - Type of weapon to switch to
+ */
+export function updatePlayerWeapon(player, weaponType) {
+  if (!player || !player.userData.weaponGroup) return;
+  
+  // Remove current weapon model
+  if (player.userData.currentWeaponModel) {
+    player.userData.weaponGroup.remove(player.userData.currentWeaponModel);
+  }
+  
+  // Create and add new weapon model
+  const newWeaponModel = createPlayerWeaponModel(weaponType);
+  player.userData.weaponGroup.add(newWeaponModel);
+  player.userData.currentWeaponModel = newWeaponModel;
+  
+  // Adjust weapon position based on type
+  if (weaponType === WEAPONS.MP41) {
+    // MP41 is shorter, adjust position
+    player.userData.weaponGroup.position.set(0.55, 0.9, 0.2);
+  } else {
+    // Rifle position
+    player.userData.weaponGroup.position.set(0.55, 0.9, 0.3);
+  }
+}
+
+/**
+ * Triggers the shooting animation
+ * @param {THREE.Group} player - The player object
  */
 export function triggerShootAnimation(player) {
-  player.userData.isShooting = true;
-  player.userData.shootingTime = 0;
+  if (!player || !player.userData.weaponGroup) return;
   
-  // Store the current weapon position for recoil if not already stored
   const weaponGroup = player.userData.weaponGroup;
-  if (weaponGroup && !player.userData.weaponRecoilOriginalPos) {
-    player.userData.weaponRecoilOriginalPos = {
-      x: weaponGroup.position.x,
-      y: weaponGroup.position.y,
-      z: weaponGroup.position.z
-    };
-  }
+  const originalPosition = weaponGroup.position.clone();
+  
+  // Recoil animation
+  const recoilAmount = 0.1;
+  const recoilDuration = 50; // ms
+  
+  // Move weapon back
+  weaponGroup.position.z -= recoilAmount;
+  
+  // Reset position after duration
+  setTimeout(() => {
+    weaponGroup.position.copy(originalPosition);
+  }, recoilDuration);
 }
 
 /**

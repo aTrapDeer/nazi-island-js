@@ -2,6 +2,7 @@
  * Game state management class
  */
 import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+import { WEAPONS, AMMO_TYPES } from './weapons.js';
 
 export class GameState {
   constructor() {
@@ -15,6 +16,12 @@ export class GameState {
     this.isWaveActive = false;
     this.reducedEffects = false;
     this.enemiesRemainingInWave = 0;
+    
+    // Weapon system properties
+    this.currentWeapon = WEAPONS.RIFLE;
+    this.hasMP41 = false;
+    this.mp41Ammo = 0;
+    this.autoFireActive = false;
   }
   
   /**
@@ -49,19 +56,68 @@ export class GameState {
    * @returns {boolean} - Whether ammo was successfully used
    */
   useAmmo(amount) {
-    if (this.ammo >= amount) {
-      this.ammo -= amount;
-      return true;
+    // Check which ammo type to use based on current weapon
+    if (this.currentWeapon === WEAPONS.MP41) {
+      if (this.mp41Ammo >= amount) {
+        this.mp41Ammo -= amount;
+        return true;
+      }
+      return false;
+    } else {
+      // Standard ammo for rifle
+      if (this.ammo >= amount) {
+        this.ammo -= amount;
+        return true;
+      }
+      return false;
     }
-    return false;
   }
   
   /**
    * Add ammo to player
    * @param {number} amount - Amount of ammo to add
+   * @param {string} ammoType - Type of ammo to add (from AMMO_TYPES)
    */
-  addAmmo(amount) {
-    this.ammo += amount;
+  addAmmo(amount, ammoType = AMMO_TYPES.STANDARD) {
+    if (ammoType === AMMO_TYPES.MP41) {
+      this.mp41Ammo += amount;
+    } else {
+      this.ammo += amount;
+    }
+  }
+  
+  /**
+   * Get current ammo count based on equipped weapon
+   * @returns {number} - Current ammo count
+   */
+  getCurrentAmmo() {
+    return this.currentWeapon === WEAPONS.MP41 ? this.mp41Ammo : this.ammo;
+  }
+  
+  /**
+   * Switch to a weapon
+   * @param {string} weaponType - Weapon type from WEAPONS enum
+   * @returns {boolean} - Whether switch was successful
+   */
+  switchWeapon(weaponType) {
+    if (weaponType === WEAPONS.MP41 && !this.hasMP41) {
+      return false;
+    }
+    
+    this.currentWeapon = weaponType;
+    return true;
+  }
+  
+  /**
+   * Collect a weapon
+   * @param {string} weaponType - Weapon type from WEAPONS enum
+   */
+  collectWeapon(weaponType) {
+    if (weaponType === WEAPONS.MP41) {
+      this.hasMP41 = true;
+      // Switch to the MP41 automatically when picked up
+      this.currentWeapon = WEAPONS.MP41;
+    }
   }
   
   /**
@@ -105,5 +161,11 @@ export class GameState {
     this.isWaveActive = false;
     this.reducedEffects = false;
     this.enemiesRemainingInWave = 0;
+    
+    // Reset weapon properties
+    this.currentWeapon = WEAPONS.RIFLE;
+    this.hasMP41 = false;
+    this.mp41Ammo = 0;
+    this.autoFireActive = false;
   }
 } 

@@ -2,12 +2,21 @@
  * Enemies module for creating and managing Nazi enemies
  */
 import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+import { WEAPONS, createWeaponPickup, createMP41AmmoPickup } from './weapons.js';
 
 // Make functions available globally
 window.createSmallBloodPool = createSmallBloodPool;
 
 // Global array to track active boats
 let activeBoats = [];
+
+// Constants for MP41 drops
+const MP41_DROP_CHANCE = 0.15; // 15% chance for enemy to drop MP41 after wave 3
+const MP41_AMMO_DROP_CHANCE = 0.3; // 30% chance for enemy to drop MP41 ammo after wave 3
+const MP41_AMMO_DROP_AMOUNT = 16; // Amount of MP41 ammo dropped
+
+// Make enemy drop functions available globally
+window.createEnemyDrops = createEnemyDrops;
 
 /**
  * Creates a single enemy with improved model
@@ -2328,4 +2337,63 @@ function animateEnemyWalking(enemy, deltaTime) {
   if (rightArm.position && enemy.userData.rightArmPos) {
     rightArm.position.z = enemy.userData.rightArmPos.z + legOffset * 0.7;
   }
+}
+
+/**
+ * Creates drops when an enemy is killed
+ * @param {THREE.Scene} scene - The scene to add the drops to
+ * @param {THREE.Vector3} position - Position where enemy died
+ * @param {number} wave - Current wave number
+ * @param {boolean} isElite - Whether the enemy was an elite
+ * @returns {Object} - Object containing arrays of created pickups
+ */
+export function createEnemyDrops(scene, position, wave, isElite = false) {
+  const drops = {
+    ammoPickups: [],
+    weaponPickups: [],
+    mp41AmmoPickups: []
+  };
+  
+  // Standard ammo drop chance (existing logic)
+  // This would be handled elsewhere in your game
+  
+  // After wave 3, enemies can drop MP41 weapons and ammo
+  if (wave >= 3) {
+    // MP41 weapon drop chance (15% base, increased for elite enemies)
+    const mp41Chance = isElite ? MP41_DROP_CHANCE * 2 : MP41_DROP_CHANCE;
+    
+    if (Math.random() < mp41Chance) {
+      // Create MP41 weapon pickup
+      const dropPosition = position.clone();
+      dropPosition.y = 0.1; // Place slightly above ground
+      
+      // Add random offset to prevent drops from stacking
+      dropPosition.x += (Math.random() - 0.5) * 0.5;
+      dropPosition.z += (Math.random() - 0.5) * 0.5;
+      
+      const weaponPickup = createWeaponPickup(scene, dropPosition, WEAPONS.MP41);
+      drops.weaponPickups.push(weaponPickup);
+    }
+    
+    // MP41 ammo drop chance (30% base, increased for elite enemies)
+    const mp41AmmoChance = isElite ? MP41_AMMO_DROP_CHANCE * 1.5 : MP41_AMMO_DROP_CHANCE;
+    
+    if (Math.random() < mp41AmmoChance) {
+      // Create MP41 ammo pickup
+      const dropPosition = position.clone();
+      dropPosition.y = 0.1; // Place slightly above ground
+      
+      // Add random offset to prevent drops from stacking
+      dropPosition.x += (Math.random() - 0.5) * 0.5;
+      dropPosition.z += (Math.random() - 0.5) * 0.5;
+      
+      // Determine ammo amount, elite enemies drop more
+      const ammoAmount = isElite ? MP41_AMMO_DROP_AMOUNT * 2 : MP41_AMMO_DROP_AMOUNT;
+      
+      const ammoPickup = createMP41AmmoPickup(scene, dropPosition, ammoAmount);
+      drops.mp41AmmoPickups.push(ammoPickup);
+    }
+  }
+  
+  return drops;
 } 
