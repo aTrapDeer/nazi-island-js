@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nazi Island - Post-Battle Scene</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background-color: #000;
+    }
+
+    #loading-screen {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 1000;
+    }
+
+    .loader {
+      border: 5px solid #333;
+      border-top: 5px solid #f3f3f3;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loader"></div>
+    <h2>Loading Post-Battle Scene...</h2>
+    <p>Creating a dramatic aftermath scene</p>
+    <div id="loading-status">Initializing...</div>
+  </div>
+
+  <script type="module">
+    // Debug loading status
+    const loadingStatus = document.getElementById('loading-status');
+    
+    // Function to update loading status
+    function updateStatus(message) {
+      console.log("Loading status:", message);
+      loadingStatus.textContent = message;
+    }
+    
+    // Wait for resources to load
+    window.addEventListener('load', function() {
+      updateStatus("Resources loaded, creating scene...");
+      
+      // Try to import the scene with error handling
+      try {
+        updateStatus("Importing scene module...");
+        
+        // Import and start the scene
+        import('./post-battle-scene.js')
+          .then(() => {
+            updateStatus("Scene loaded successfully!");
+            // Hide loading screen after a short delay
+            setTimeout(() => {
+              document.getElementById('loading-screen').style.display = 'none';
+            }, 1500);
+          })
+          .catch(error => {
+            updateStatus("Failed to load scene module!");
+            console.error("Error loading scene:", error.message);
+            console.error(error);
+          });
+      } catch (error) {
+        updateStatus("Exception during import!");
+        console.error("Error creating scene:", error.message);
+        console.error(error);
+      }
+    });
+  </script>
+</body>
+</html> 
