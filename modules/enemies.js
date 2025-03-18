@@ -98,7 +98,7 @@ function createEnemyBodyParts(enemy) {
   // Enemy body - improved Nazi soldier with better proportions
   const bodyGeometry = new THREE.BoxGeometry(0.8, 1.8, 0.6);
   const bodyMaterial = new THREE.MeshStandardMaterial({
-    color: 0x4e5754, // German field gray uniform
+    color: 0x3b5444, // Wehrmacht feldgrau (field gray-green)
     roughness: 0.7,
     metalness: 0.1
   });
@@ -111,12 +111,51 @@ function createEnemyBodyParts(enemy) {
   // Store reference to body mesh
   enemy.userData.body = body;
   
-  // Shoulders for better dimension
+  // Add belt
+  const beltGeometry = new THREE.BoxGeometry(0.85, 0.15, 0.65);
+  const beltMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a1a1a, // Black leather belt
+    roughness: 0.6,
+    metalness: 0.2
+  });
+  const belt = new THREE.Mesh(beltGeometry, beltMaterial);
+  belt.position.set(0, 0.2, 0);
+  enemy.object.add(belt);
+  
+  // Belt buckle with Nazi eagle emblem
+  const buckleGeometry = new THREE.BoxGeometry(0.15, 0.2, 0.05);
+  const buckleMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd4af37, // Gold color
+    roughness: 0.3,
+    metalness: 0.8
+  });
+  const buckle = new THREE.Mesh(buckleGeometry, buckleMaterial);
+  buckle.position.set(0, 0.2, 0.35);
+  enemy.object.add(buckle);
+  
+  // Shoulders with epaulettes
   const shoulderGeometry = new THREE.BoxGeometry(1.1, 0.3, 0.65);
   const shoulderMesh = new THREE.Mesh(shoulderGeometry, bodyMaterial);
   shoulderMesh.position.set(0, 1.4, 0);
   shoulderMesh.castShadow = true;
   enemyContainer.add(shoulderMesh);
+  
+  // Collar tabs (Kragenspiegel)
+  const collarTabGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.1);
+  const collarTabMaterial = new THREE.MeshStandardMaterial({
+    color: 0x000000, // Black tabs
+    roughness: 0.5
+  });
+  
+  // Left collar tab
+  const leftCollarTab = new THREE.Mesh(collarTabGeometry, collarTabMaterial);
+  leftCollarTab.position.set(-0.3, 1.3, 0.3);
+  enemy.object.add(leftCollarTab);
+  
+  // Right collar tab
+  const rightCollarTab = new THREE.Mesh(collarTabGeometry, collarTabMaterial);
+  rightCollarTab.position.set(0.3, 1.3, 0.3);
+  enemy.object.add(rightCollarTab);
   
   // Head with detailed face
   const headGroup = new THREE.Group();
@@ -150,17 +189,63 @@ function createEnemyBodyParts(enemy) {
   rightEye.position.set(0.18, 0.1, 0.35);
   headGroup.add(rightEye);
   
-  // Add helmet
-  const helmetGeometry = new THREE.SphereGeometry(0.4, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+  // Add mouth
+  const mouthGeometry = new THREE.BoxGeometry(0.2, 0.05, 0.05);
+  const mouthMaterial = new THREE.MeshStandardMaterial({
+    color: 0x8B4513, // Brown
+    roughness: 0.5
+  });
+  const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+  mouth.position.set(0, -0.15, 0.36);
+  headGroup.add(mouth);
+  
+  // Add German Stahlhelm (steel helmet)
+  const helmetGroup = new THREE.Group();
+  helmetGroup.position.set(0, 0.3, 0);
+  headGroup.add(helmetGroup);
+  
+  // Main helmet dome
+  const helmetGeometry = new THREE.SphereGeometry(0.42, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
   const helmetMaterial = new THREE.MeshStandardMaterial({
-    color: 0x3a3a3a, // Field gray
+    color: 0x3d5e42, // Wehrmacht helmet color (greenish-gray)
     roughness: 0.7,
     metalness: 0.3
   });
   const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
-  helmet.scale.set(1, 0.8, 1.1);
-  helmet.position.y = 0.3;
-  headGroup.add(helmet);
+  helmet.scale.set(1, 0.65, 1.1); // Flattened and elongated
+  helmetGroup.add(helmet);
+  
+  // Helmet back neckguard (characteristic of German helmets)
+  const neckGuardGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.2);
+  const neckGuard = new THREE.Mesh(neckGuardGeometry, helmetMaterial);
+  neckGuard.position.set(0, -0.1, -0.35);
+  neckGuard.rotation.x = Math.PI / 8; // Slightly angled downward
+  helmetGroup.add(neckGuard);
+  
+  // Helmet side flares
+  const sideFlareGeometry = new THREE.BoxGeometry(0.75, 0.1, 0.1);
+  const leftFlare = new THREE.Mesh(sideFlareGeometry, helmetMaterial);
+  leftFlare.position.set(-0.2, 0, 0);
+  leftFlare.rotation.y = Math.PI / 6;
+  leftFlare.rotation.z = Math.PI / 6;
+  helmetGroup.add(leftFlare);
+  
+  const rightFlare = new THREE.Mesh(sideFlareGeometry, helmetMaterial);
+  rightFlare.position.set(0.2, 0, 0);
+  rightFlare.rotation.y = -Math.PI / 6;
+  rightFlare.rotation.z = -Math.PI / 6;
+  helmetGroup.add(rightFlare);
+  
+  // Helmet Wehrmacht eagle decal
+  const eagleGeometry = new THREE.BoxGeometry(0.25, 0.05, 0.02);
+  const eagleMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd4d4d4, // Silver
+    roughness: 0.3,
+    metalness: 0.7
+  });
+  const eagle = new THREE.Mesh(eagleGeometry, eagleMaterial);
+  eagle.position.set(0, 0.1, 0.4);
+  helmetGroup.add(eagle);
   
   // Arms
   const armGeometry = new THREE.BoxGeometry(0.25, 0.9, 0.25);
@@ -186,6 +271,30 @@ function createEnemyBodyParts(enemy) {
   // Store reference to right arm mesh
   enemy.userData.rightArm = rightArm;
   
+  // Add armband to left arm (Nazi armband)
+  const armbandGeometry = new THREE.BoxGeometry(0.28, 0.18, 0.28);
+  const armbandMaterial = new THREE.MeshStandardMaterial({
+    color: 0xcc0000, // Red
+    roughness: 0.6
+  });
+  const armband = new THREE.Mesh(armbandGeometry, armbandMaterial);
+  armband.position.set(-0.55, 1.1, 0);
+  enemyContainer.add(armband);
+  
+  // Add black swastika to armband (as a simple box in the shape of a plus for discretion)
+  const swastikaGeometry = new THREE.BoxGeometry(0.1, 0.02, 0.01);
+  const swastikaMaterial = new THREE.MeshStandardMaterial({
+    color: 0x000000, // Black
+    roughness: 0.5
+  });
+  const swastikaH = new THREE.Mesh(swastikaGeometry, swastikaMaterial);
+  swastikaH.position.set(-0.55, 1.1, 0.15);
+  enemyContainer.add(swastikaH);
+  
+  const swastikaV = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.1, 0.01), swastikaMaterial);
+  swastikaV.position.set(-0.55, 1.1, 0.15);
+  enemyContainer.add(swastikaV);
+  
   // Hands
   const handGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
   const handMaterial = new THREE.MeshStandardMaterial({
@@ -206,7 +315,7 @@ function createEnemyBodyParts(enemy) {
   // Legs
   const legGeometry = new THREE.BoxGeometry(0.3, 1.1, 0.3);
   const legMaterial = new THREE.MeshStandardMaterial({
-    color: 0x3d3d29, // Darker gray for pants
+    color: 0x3d3d29, // Darker field gray for pants
     roughness: 0.8
   });
   
@@ -230,12 +339,12 @@ function createEnemyBodyParts(enemy) {
   // Store reference to right leg mesh
   enemy.userData.rightLeg = rightLeg;
   
-  // Boots
-  const bootGeometry = new THREE.BoxGeometry(0.33, 0.25, 0.35);
+  // Boots - tall jackboots typical of Nazi uniform
+  const bootGeometry = new THREE.BoxGeometry(0.33, 0.4, 0.35);
   const bootMaterial = new THREE.MeshStandardMaterial({
     color: 0x1a1a1a, // Black boots
-    roughness: 0.7,
-    metalness: 0.1
+    roughness: 0.6,
+    metalness: 0.2
   });
   
   const leftBoot = new THREE.Mesh(bootGeometry, bootMaterial);
@@ -248,33 +357,71 @@ function createEnemyBodyParts(enemy) {
   rightBoot.castShadow = true;
   enemyContainer.add(rightBoot);
   
-  // Create gun in right hand
+  // Create German WWII Rifle (Karabiner 98k)
   const gunGroup = new THREE.Group();
   gunGroup.position.set(0.55, 0.6, 0.3);
   enemyContainer.add(gunGroup);
   
-  // Gun body
-  const gunBodyGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.8);
-  const gunMaterial = new THREE.MeshStandardMaterial({
+  // Gun body (wooden stock)
+  const gunBodyGeometry = new THREE.BoxGeometry(0.08, 0.12, 1.0);
+  const gunWoodMaterial = new THREE.MeshStandardMaterial({
+    color: 0x5c3a21, // Brown wood
+    roughness: 0.7
+  });
+  const gunBody = new THREE.Mesh(gunBodyGeometry, gunWoodMaterial);
+  gunBody.position.z = -0.1; // Move back slightly
+  gunGroup.add(gunBody);
+  
+  // Gun metal parts
+  const gunMetalMaterial = new THREE.MeshStandardMaterial({
     color: 0x2d2d2d, // Dark metal
     metalness: 0.7,
     roughness: 0.3
   });
-  const gunBody = new THREE.Mesh(gunBodyGeometry, gunMaterial);
-  gunGroup.add(gunBody);
-  
-  // Gun magazine
-  const magazineGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.1);
-  const magazine = new THREE.Mesh(magazineGeometry, gunMaterial);
-  magazine.position.set(0, -0.2, 0);
-  gunGroup.add(magazine);
   
   // Gun barrel
-  const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8);
-  const barrel = new THREE.Mesh(barrelGeometry, gunMaterial);
+  const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 8);
+  const barrel = new THREE.Mesh(barrelGeometry, gunMetalMaterial);
   barrel.rotation.x = Math.PI / 2;
   barrel.position.z = 0.6;
+  barrel.position.y = 0.03;
   gunGroup.add(barrel);
+  
+  // Gun bolt
+  const boltGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.12);
+  const bolt = new THREE.Mesh(boltGeometry, gunMetalMaterial);
+  bolt.position.set(0.07, 0.05, 0.15);
+  gunGroup.add(bolt);
+  
+  // Rifle scope (some German rifles had scopes)
+  const scopeGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.25, 8);
+  const scope = new THREE.Mesh(scopeGeometry, gunMetalMaterial);
+  scope.position.set(0, 0.1, 0.2);
+  gunGroup.add(scope);
+  
+  // Add backpack to some soldiers (randomly)
+  if (Math.random() > 0.5) {
+    const backpackGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.2);
+    const backpackMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2b3d35, // Dark green-gray
+      roughness: 0.8
+    });
+    const backpack = new THREE.Mesh(backpackGeometry, backpackMaterial);
+    backpack.position.set(0, 0.9, -0.4);
+    enemyContainer.add(backpack);
+    
+    // Add canteen to backpack
+    const canteenGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 8);
+    const canteenMaterial = new THREE.MeshStandardMaterial({
+      color: 0x3d3d3d, // Metal gray
+      metalness: 0.5,
+      roughness: 0.5
+    });
+    const canteen = new THREE.Mesh(canteenGeometry, canteenMaterial);
+    canteen.rotation.x = Math.PI / 2;
+    canteen.position.set(0.2, 0.8, -0.5);
+    enemyContainer.add(canteen);
+  }
   
   // Rotate the entire enemy to face outward
   enemyContainer.rotation.y = Math.PI;
