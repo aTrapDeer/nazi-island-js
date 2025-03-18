@@ -18,7 +18,7 @@ export class GameState {
     this.enemiesRemainingInWave = 0;
     
     // Weapon system properties
-    this.currentWeapon = WEAPONS.RIFLE;
+    this.currentWeapon = WEAPONS.M1_GARAND;
     this.hasMP41 = false;
     this.mp41Ammo = 0;
     this.autoFireActive = false;
@@ -163,7 +163,7 @@ export class GameState {
     this.enemiesRemainingInWave = 0;
     
     // Reset weapon properties
-    this.currentWeapon = WEAPONS.RIFLE;
+    this.currentWeapon = WEAPONS.M1_GARAND;
     this.hasMP41 = false;
     this.mp41Ammo = 0;
     this.autoFireActive = false;

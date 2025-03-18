@@ -189,13 +189,13 @@ export function createPlayer(scene) {
   rightBoot.castShadow = true;
   player.add(rightBoot);
   
-  // Weapon - more detailed rifle, correctly positioned in FRONT (positive Z)
+  // Weapon - M1 Garand rifle, correctly positioned
   const weaponGroup = new THREE.Group();
   weaponGroup.position.set(0.55, 0.9, 0.3); // Positive Z is front direction now
   player.add(weaponGroup);
   
-  // Create initial weapon model (rifle)
-  const weaponModel = createPlayerWeaponModel(WEAPONS.RIFLE);
+  // Create initial weapon model (M1 Garand)
+  const weaponModel = createPlayerWeaponModel(WEAPONS.M1_GARAND);
   weaponGroup.add(weaponModel);
   
   // Store weapon-related properties

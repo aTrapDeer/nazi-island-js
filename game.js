@@ -7,7 +7,7 @@ import { createPlayer, updatePlayerPosition, triggerShootAnimation, updatePlayer
 import { createEnemy, spawnWave, updateEnemies, triggerEnemyHitAnimation, dismemberEnemyPart, triggerEnemyDeathAnimation, updateBoats, createEnemyDrops } from './modules/enemies.js';
 import { createProjectile, createAmmoPickup, updateProjectiles, updateAmmoPickups, createMuzzleFlash, createEnemyProjectile } from './modules/projectiles.js';
 import { GameState } from './modules/gameState.js';
-import { WEAPONS, AMMO_TYPES, createWeaponPickup, createMP41AmmoPickup, updateWeaponPickups, updateMP41AmmoPickups } from './modules/weapons.js';
+import { WEAPONS, AMMO_TYPES, WEAPON_CONFIG, createWeaponPickup, createMP41AmmoPickup, updateWeaponPickups, updateMP41AmmoPickups } from './modules/weapons.js';
 
 // Game constants
 const ISLAND_RADIUS = 50;
@@ -119,9 +119,11 @@ function init() {
   window.handleEnemyHit = handleEnemyHit;
   window.updateUI = updateUI;
   window.updateHealthDisplay = updateHealthDisplay;
-  window.createEnemyProjectile = createEnemyProjectile; // Make enemy projectile creation available globally
-  window.createMuzzleFlash = createMuzzleFlash; // Make muzzle flash available globally
-  window.playSound = playSound; // Make sound function available for jumping
+  window.createEnemyProjectile = createEnemyProjectile;
+  window.createMuzzleFlash = createMuzzleFlash;
+  if (typeof playSound === 'function') {
+    window.playSound = playSound;
+  }
   
   // Create lighting
   setupLighting();
@@ -143,24 +145,6 @@ function init() {
   
   // Create debug overlay (hidden by default)
   createDebugOverlay();
-  
-  // Add weapon switching to key handlers
-  document.addEventListener('keydown', (event) => {
-    if (gameState.isGameOver) return;
-    
-    keyState[event.code] = true;
-    
-    // Handle weapon switching
-    if (event.code === 'Digit1') {
-      if (gameState.switchWeapon(WEAPONS.RIFLE)) {
-        updatePlayerWeapon(player, WEAPONS.RIFLE);
-      }
-    } else if (event.code === 'Digit2') {
-      if (gameState.switchWeapon(WEAPONS.MP41)) {
-        updatePlayerWeapon(player, WEAPONS.MP41);
-      }
-    }
-  });
 }
 
 function setupLighting() {
@@ -204,7 +188,8 @@ function setupGameUI() {
     <div style="margin-bottom: 8px"><span style="font-weight: bold">Wave:</span> <span id="wave" style="color: #ff9900">1</span></div>
     <div style="margin-bottom: 8px"><span style="font-weight: bold">Enemies:</span> <span id="enemiesRemaining" style="color: #ff5555">0</span></div>
     <div style="margin-bottom: 8px"><span style="font-weight: bold">Health:</span> <span id="health" style="color: #66ff66">100</span></div>
-    <div><span style="font-weight: bold">Ammo:</span> <span id="ammo" style="color: #99ccff">50</span></div>
+    <div style="margin-bottom: 8px"><span style="font-weight: bold">Ammo:</span> <span id="ammo" style="color: #99ccff">50</span></div>
+    <div><span style="font-weight: bold">Weapon:</span> <span id="currentWeapon" style="color: #ffffff">M1 Garand</span> <span style="font-size: 14px; color: #aaaaaa">(Press 1-2 to switch)</span></div>
   `;
   document.body.appendChild(hud);
   
@@ -258,6 +243,9 @@ function setupGameUI() {
   document.getElementById('restartButton').addEventListener('click', restartGame);
 }
 
+/**
+ * Sets up input event listeners for keyboard and mouse
+ */
 function setupInputListeners() {
   // Keyboard input
   document.addEventListener('keydown', (event) => {
@@ -269,7 +257,23 @@ function setupInputListeners() {
     // Handle debug toggle
     if (event.code === 'Backquote') {
       showDebugInfo = !showDebugInfo;
+      gameState.showDebugInfo = showDebugInfo;
       toggleDebugOverlay(showDebugInfo);
+    }
+    
+    // Handle weapon switching
+    if (event.code === 'Digit1') {
+      if (gameState.switchWeapon(WEAPONS.M1_GARAND)) {
+        updatePlayerWeapon(player, WEAPONS.M1_GARAND);
+        showNotification('Switched to M1 Garand');
+      }
+    } else if (event.code === 'Digit2') {
+      if (gameState.hasMP41 && gameState.switchWeapon(WEAPONS.MP41)) {
+        updatePlayerWeapon(player, WEAPONS.MP41);
+        showNotification('Switched to MP41');
+      } else if (!gameState.hasMP41) {
+        showNotification('You don\'t have an MP41 yet');
+      }
     }
   });
   
@@ -277,115 +281,111 @@ function setupInputListeners() {
     keyState[event.code] = false;
   });
   
-  // Mouse down for shooting
+  // Mouse input for shooting
   document.addEventListener('mousedown', (event) => {
-    // Don't process clicks if game is over
     if (gameState.isGameOver) return;
     
     if (event.button === 0) { // Left mouse button
-      isMouseDown = true;
-      shoot();
+      gameState.mouseDown = true;
+      
+      // Fire immediately
+      const currentWeaponConfig = WEAPON_CONFIG[gameState.currentWeapon];
+      const isAutomatic = currentWeaponConfig ? currentWeaponConfig.automatic : false;
+      shoot(isAutomatic);
     }
   });
   
-  // Mouse up to stop shooting
   document.addEventListener('mouseup', (event) => {
     if (event.button === 0) { // Left mouse button
-      isMouseDown = false;
+      gameState.mouseDown = false;
     }
   });
   
-  // Track mouse position for aiming
+  // Mouse movement for aiming
   document.addEventListener('mousemove', (event) => {
-    // Calculate normalized device coordinates (-1 to +1)
+    // Calculate normalized device coordinates
     const x = (event.clientX / window.innerWidth) * 2 - 1;
     const y = -(event.clientY / window.innerHeight) * 2 + 1;
     
-    // Store in game state
+    // Update mouse position in game state
     gameState.mousePosition = new THREE.Vector2(x, y);
   });
   
-  // Prevent context menu on right-click
-  document.addEventListener('contextmenu', (event) => {
-    event.preventDefault();
-  });
 }
 
-function shoot() {
+/**
+ * Handle player's shooting based on weapon type
+ * @param {boolean} isAutomatic - Whether the current weapon is automatic
+ */
+function shoot(isAutomatic = false) {
+  // Don't shoot if game is over
+  if (gameState.isGameOver) return;
+  
   // Check if player has ammo
-  if (gameState.ammo <= 0) {
-    // Play empty gun click sound
+  if (gameState.getCurrentAmmo() <= 0) {
     console.log("Out of ammo!");
     return;
   }
   
+  // Don't shoot too rapidly unless weapon is automatic
+  const now = Date.now();
+  const currentWeaponConfig = WEAPON_CONFIG[gameState.currentWeapon];
+  const weaponFireRate = currentWeaponConfig ? currentWeaponConfig.fireRate : 200;
+  
+  if (now - lastFireTime < weaponFireRate) {
+    return;
+  }
+  
+  // Update last fire time
+  lastFireTime = now;
+  
   // Use ammo
   gameState.useAmmo(1);
+  
+  // Update UI
   updateUI();
   
-  // Get shooting direction from mouse position using 3D raycasting
+  // Create raycaster for bullet path
   raycaster.setFromCamera(gameState.mousePosition, camera);
   
-  // Create a ray from the camera through the mouse position
-  const ray = raycaster.ray.clone();
+  // Get the exact position of the weapon
+  const weaponGroup = player.userData.weaponGroup;
+  const weaponPosition = new THREE.Vector3();
+  weaponGroup.getWorldPosition(weaponPosition);
   
-  // Find the intersection with a plane at a reasonable distance
-  // This allows for aiming at different heights
-  const targetDistance = 100; // Far enough to aim at distant targets
-  const targetPoint = ray.at(targetDistance, new THREE.Vector3());
+  // Get exact muzzle position
+  const gunPosition = weaponPosition.clone();
+  gunPosition.y += 0.1; // Adjust to barrel position
   
-  // Calculate gun position in world space
-  const gunOffset = new THREE.Vector3(0.55, 0.9, 0.8); // Position relative to player
-  const rotatedOffset = gunOffset.clone();
-  rotatedOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
-  const gunPosition = player.position.clone().add(rotatedOffset);
+  // Get shoot direction from raycaster
+  const direction = raycaster.ray.direction.clone().normalize();
   
-  // Calculate direction from gun to target point
-  const direction = new THREE.Vector3();
-  direction.subVectors(targetPoint, gunPosition).normalize();
-  
-  // Apply recoil to the shooting direction
-  if (currentRecoil > 0) {
-    // Add random deviation based on current recoil
-    const recoilVector = new THREE.Vector3(
-      (Math.random() - 0.5) * currentRecoil,
-      (Math.random() - 0.5) * currentRecoil * 0.5, // Less vertical recoil
-      (Math.random() - 0.5) * currentRecoil
-    );
-    direction.add(recoilVector).normalize();
-  }
-  
-  // Increase recoil with each shot when auto-firing
-  if (gameState.mouseDown) {
-    currentRecoil = Math.min(maxRecoil, currentRecoil + recoilIncreasePerShot);
-  }
-  
- // Create enhanced muzzle flash
-  createMuzzleFlash(scene, gunPosition, direction);
-  
-  // Create projectile with visible or invisible tracer based on debug setting
-  const projectile = createProjectile(scene, gunPosition, direction, !gameState.showBulletTracers);
-  projectiles.push(projectile);
-  
-  // Debug log for shooting direction
-  console.log(`Fired bullet: pos=(${gunPosition.x.toFixed(2)}, ${gunPosition.y.toFixed(2)}, ${gunPosition.z.toFixed(2)}), dir=(${direction.x.toFixed(2)}, ${direction.y.toFixed(2)}, ${direction.z.toFixed(2)})`);
-  
-  // Update debug display with last bullet info
-  if (gameState.showDebugInfo) {
-    const lastBulletElem = document.getElementById('debugLastBullet');
-    if (lastBulletElem) {
-      lastBulletElem.textContent = `Last Bullet: Dir=(${direction.x.toFixed(2)}, ${direction.y.toFixed(2)}, ${direction.z.toFixed(2)})`;
-    }
-  }
-  
-  // Add recoil effect
+  // Add recoil to the next shot
   addRecoilEffect();
   
-  // Trigger player shooting animation
+  // Trigger animation
   triggerShootAnimation(player);
   
-  // Direct hit detection for better accuracy
-  checkDirectHit(gunPosition, direction);
+  // Direct hit check for improved hit detection
+  const hit = checkDirectHit(gunPosition, direction);
+  if (hit && hit.object && hit.object.parent && hit.object.parent.userData && hit.object.parent.userData.isEnemy) {
+    // We hit an enemy directly
+    const enemy = hit.object.parent.userData.enemyObject;
+    const hitPoint = hit.point.clone();
+    
+    // Get the body part that was hit
+    const hitBodyPart = hit.object.userData.bodyPart || 'body';
+    
+    // Call hit function with appropriate parameters
+    handleEnemyHit(enemy, hitPoint, direction, hitBodyPart);
+  } else {
+    // No direct hit, create a projectile
+    const projectile = createProjectile(scene, gunPosition, direction, !gameState.showBulletTracers);
+    projectiles.push(projectile);
+  }
+  
+  // Always create muzzle flash for visual feedback
+  createMuzzleFlash(scene, gunPosition, direction);
 }
 
 // New function to check for direct hits based on cursor position
@@ -801,44 +801,61 @@ function showHitMarker(isHeadshot) {
   }, 100);
 }
 
+/**
+ * Updates the game UI elements
+ */
 function updateUI() {
-  // Update HUD
+  // Update score
   document.getElementById('score').textContent = gameState.score;
+  
+  // Update wave
   document.getElementById('wave').textContent = gameState.wave;
-  document.getElementById('health').textContent = gameState.health;
-  document.getElementById('ammo').textContent = gameState.ammo;
+  
+  // Update enemies remaining
   document.getElementById('enemiesRemaining').textContent = gameState.enemiesRemainingInWave;
   
-  // Update enemy counter color based on how many are left
-  const enemiesElement = document.getElementById('enemiesRemaining');
-  if (gameState.enemiesRemainingInWave === 0) {
-    enemiesElement.style.color = '#00ff00'; // Green when all are defeated
-  } else if (gameState.enemiesRemainingInWave <= 3) {
-    enemiesElement.style.color = '#ffff00'; // Yellow when almost done
-  } else {
-    enemiesElement.style.color = '#ff5555'; // Red for normal count
+  // Update health
+  document.getElementById('health').textContent = gameState.health;
+  
+  // Update ammo display based on current weapon
+  const ammoDisplay = document.getElementById('ammo');
+  if (ammoDisplay) {
+    // Get current weapon ammo
+    const currentAmmo = gameState.getCurrentAmmo();
+    
+    // Set color based on ammo level
+    if (currentAmmo <= 5) {
+      ammoDisplay.style.color = '#ff3333'; // Red for low ammo
+    } else if (currentAmmo <= 15) {
+      ammoDisplay.style.color = '#ffcc00'; // Yellow for medium ammo
+    } else {
+      ammoDisplay.style.color = '#99ccff'; // Default blue
+    }
+    
+    // Display weapon type along with ammo
+    let ammoText = `${currentAmmo}`;
+    
+    // Add weapon type if it's MP41
+    if (gameState.currentWeapon === WEAPONS.MP41) {
+      ammoText += ' MP41';
+    }
+    
+    ammoDisplay.textContent = ammoText;
   }
   
-  // Update health color based on current health
-  const healthElement = document.getElementById('health');
-  if (gameState.health <= 25) {
-    healthElement.style.color = '#ff0000'; // Red when low health
-    healthElement.style.fontWeight = 'bold';
-  } else if (gameState.health <= 50) {
-    healthElement.style.color = '#ffff00'; // Yellow when medium health
-  } else {
-    healthElement.style.color = '#66ff66'; // Green for good health
-  }
-  
-  // Update ammo color based on current ammo
-  const ammoElement = document.getElementById('ammo');
-  if (gameState.ammo <= 10) {
-    ammoElement.style.color = '#ff0000'; // Red when low ammo
-    ammoElement.style.fontWeight = 'bold';
-  } else if (gameState.ammo <= 20) {
-    ammoElement.style.color = '#ffff00'; // Yellow when medium ammo
-  } else {
-    ammoElement.style.color = '#99ccff'; // Blue for good ammo
+  // Update current weapon display
+  const weaponDisplay = document.getElementById('currentWeapon');
+  if (weaponDisplay) {
+    let weaponName = 'M1 Garand';
+    let weaponColor = '#ffffff';
+    
+    if (gameState.currentWeapon === WEAPONS.MP41) {
+      weaponName = 'MP41';
+      weaponColor = '#ff9900'; // Orange for MP41
+    }
+    
+    weaponDisplay.textContent = weaponName;
+    weaponDisplay.style.color = weaponColor;
   }
 }
 
@@ -1148,7 +1165,7 @@ function restartGame() {
 }
 
 // Animation loop
-function animate() {
+function animate(time) {
   // Request next frame immediately, but we'll only update/render if enough time has passed
   requestAnimationFrame(animate);
   
@@ -1298,6 +1315,14 @@ function animate() {
     
     // Render the scene
     renderer.render(scene, camera);
+  }
+  
+  // Handle auto-firing for automatic weapons
+  if (gameState.mouseDown && !gameState.isGameOver) {
+    const currentWeaponConfig = WEAPON_CONFIG[gameState.currentWeapon];
+    if (currentWeaponConfig && currentWeaponConfig.automatic) {
+      shoot(true);
+    }
   }
 }
 
