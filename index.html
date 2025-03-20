@@ -51,6 +51,73 @@
       max-width: 80%;
       display: none;
     }
+
+    #title-screen {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #000000, #222222, #444444);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 999;
+    }
+
+    #title {
+      font-size: 5rem;
+      margin-bottom: 2rem;
+      text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+    }
+
+    #instructions {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 600px;
+      margin-bottom: 2rem;
+    }
+
+    #instructions h2 {
+      margin-top: 0;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    #instructions ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    #instructions li {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+
+    .key {
+      background-color: #333;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      margin-right: 10px;
+      font-weight: bold;
+      min-width: 50px;
+      text-align: center;
+    }
+
+    #start-prompt {
+      font-size: 1.5rem;
+      margin-top: 1rem;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
+    }
   </style>
 </head>
 <body>
@@ -59,6 +126,22 @@
     <h2>Loading Nazi Island...</h2>
     <p>Prepare to fight waves of enemies!</p>
     <div id="loading-status">Initializing...</div>
+  </div>
+  
+  <div id="title-screen">
+    <h1 id="title">NAZI ISLAND</h1>
+    <div id="instructions">
+      <h2>CONTROLS</h2>
+      <ul>
+        <li><span class="key">W A S D</span> Movement</li>
+        <li><span class="key">Mouse</span> Aim</li>
+        <li><span class="key">Left Click</span> Shoot</li>
+        <li><span class="key">E</span> Pick up items</li>
+        <li><span class="key">Shift</span> Sprint</li>
+        <li><span class="key">Space</span> Jump</li>
+      </ul>
+    </div>
+    <div id="start-prompt">Press ENTER to Start</div>
   </div>
   
   <div id="error-message"></div>
@@ -76,6 +159,8 @@
     // Debug loading status
     const loadingStatus = document.getElementById('loading-status');
     const errorMessage = document.getElementById('error-message');
+    const titleScreen = document.getElementById('title-screen');
+    let gameStarted = false;
     
     // Function to update loading status
     function updateStatus(message) {
@@ -92,32 +177,61 @@
     
     // Wait for resources to load
     window.addEventListener('load', function() {
-      updateStatus("Resources loaded, starting game...");
+      updateStatus("Resources loaded, waiting for game start...");
       
-      // Try to import the game with error handling
-      try {
-        updateStatus("Importing game module...");
-        
-        // Import and start the main game
-        import('./game.js')
-          .then(() => {
-            updateStatus("Game module loaded successfully!");
-            // Hide loading screen after a short delay
-            setTimeout(() => {
-              document.getElementById('loading-screen').style.display = 'none';
-            }, 1500);
-          })
-          .catch(error => {
-            updateStatus("Failed to load game module!");
-            showError("Error loading game: " + error.message);
-            console.error(error);
-          });
-      } catch (error) {
-        updateStatus("Exception during import!");
-        showError("Error starting game: " + error.message);
-        console.error(error);
-      }
+      // Hide loading screen after a short delay
+      setTimeout(() => {
+        document.getElementById('loading-screen').style.display = 'none';
+      }, 1500);
+      
+      // Event listener for Enter key to start the game
+      window.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && !gameStarted) {
+          startGame();
+        }
+      });
     });
+    
+    // Function to start the game
+    function startGame() {
+      gameStarted = true;
+      updateStatus("Starting game...");
+      
+      // Hide title screen with fade effect
+      titleScreen.style.transition = 'opacity 1s';
+      titleScreen.style.opacity = '0';
+      
+      setTimeout(() => {
+        titleScreen.style.display = 'none';
+        
+        // Try to import the game with error handling
+        try {
+          updateStatus("Importing game module...");
+          
+          // Import and start the main game
+          import('./game.js')
+            .then(() => {
+              updateStatus("Game module loaded successfully!");
+              // Initialize audio if available
+              if (typeof audioSystem !== 'undefined') {
+                audioSystem.initialize();
+                if (!gameState.isGameOver) {
+                  audioSystem.playTrack('gameplay', 2);
+                }
+              }
+            })
+            .catch(error => {
+              updateStatus("Failed to load game module!");
+              showError("Error loading game: " + error.message);
+              console.error(error);
+            });
+        } catch (error) {
+          updateStatus("Exception during import!");
+          showError("Error starting game: " + error.message);
+          console.error(error);
+        }
+      }, 1000);
+    }
   </script>
 </body>
 </html> 
